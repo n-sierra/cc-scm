@@ -57,6 +57,13 @@ function nextToken(str, pos)
   pos, v = skip(str, "^\"([^\"]*)\"", pos)
   if v then return pos, {type = "string", value = v} end
 
+  -- boolean
+  pos, v = skip(str, "^(%#t)", pos)
+  if v then return pos, {type = "boolean", value = "t"} end
+  pos, v = skip(str, "^(%#f)", pos)
+  if v then return pos, {type = "boolean", value = "f"} end
+
+
   return pos, nil
 end
 

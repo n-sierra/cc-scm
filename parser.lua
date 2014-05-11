@@ -31,6 +31,9 @@ function parse_data(tokens, pos)
   elseif tokens[pos]["type"] == "string" then
     data = tokens[pos]
     i = pos + 1
+  elseif tokens[pos]["type"] == "boolean" then
+    data = tokens[pos]
+    i = pos + 1
   else
     error("error at parsing")
   end

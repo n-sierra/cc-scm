@@ -4,6 +4,15 @@ require("compiler")
 require("global_env")
 require("utils")
 
+function eval_str(str)
+  local tokens, data, env, ans
+  tokens = tokenizer(str)
+  data = parser(tokens)
+  env = make_global_env()
+  ans = eval(data, env)
+  return ans
+end
+
 print("starting tests...")
 
 --Tokenizer
@@ -56,5 +65,21 @@ env = make_global_env()
 ans = eval(data, env)
 assert(ans["type"] == "number")
 assert(ans["value"] == 3)
+
+ans = eval_str("'var")
+assert(ans["type"] == "id")
+assert(ans["value"] == "var")
+
+ans = eval_str("(if #t 1 2)")
+assert(ans["value"] == 1)
+
+ans = eval_str("(if #f 1 2)")
+assert(ans["value"] == 2)
+
+ans = eval_str("((lambda (x y) (+ x y)) 10 20)")
+assert(ans["value"] == 30)
+
+ans = eval_str("(+ 10 20)")
+assert(ans["value"] == 30)
 
 print("finished all tests")

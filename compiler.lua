@@ -9,12 +9,15 @@ function eval(data, env)
   elseif data["type"] == "id" then
     ret = get_var(env, data["value"])
     if not ret then
-      dump(env)
       error("undefined variable is refered: " .. data["value"])
     end
   elseif data["type"] == "number" then
     ret = data
   elseif data["type"] == "string" then
+    ret = data
+  elseif data["type"] == "boolean" then
+    ret = data
+  elseif data["type"] == "null" then
     ret = data
   elseif data["type"] == "closure" then
     ret = data
@@ -93,4 +96,24 @@ end
 
 function put_var(env, name, data)
   env["vs"][name] = data
+end
+
+function update_var(env, name, data)
+  while(env ~= nil) do
+    if env["vs"][name] ~= nil then
+      env["vs"][name] = data
+      return name
+    end
+    env = env["below"]
+  end
+
+  return nil
+end
+
+function get_global_env(env)
+  while(env["below"] ~= nil) do
+    env = env["below"]
+  end
+
+  return env
 end
