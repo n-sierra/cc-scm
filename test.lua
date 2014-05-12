@@ -76,10 +76,26 @@ assert(ans["value"] == 1)
 ans = eval_str("(if #f 1 2)")
 assert(ans["value"] == 2)
 
+ans = eval_str("(begin (define x 1) (+ x 1))")
+assert(ans["value"] == 2)
+
+ans = eval_str("(begin (define x 1) (set! x (+ x 1)) x)")
+assert(ans["value"] == 2)
+
 ans = eval_str("((lambda (x y) (+ x y)) 10 20)")
 assert(ans["value"] == 30)
+ans = eval_str("((lambda (x) 1 2 3) 4)")
+assert(ans["value"] == 3)
+
+ans = eval_str("(begin (define x 1 2 3) x)")
+assert(ans["value"] == 3)
 
 ans = eval_str("(+ 10 20)")
 assert(ans["value"] == 30)
+
+-- closure test
+ans = eval_str("(begin (define deposit ((lambda (amount) (lambda (x) (set! amount (+ amount x)) amount)) 100)) (deposit 200))")
+assert(ans["value"] == 300)
+
 
 print("finished all tests")

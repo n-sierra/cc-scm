@@ -6,6 +6,7 @@ function make_global_env()
     quote     = gf_quote,
     ["if"]    = gf_if,
     ["set!"]  = gf_set_ex,
+    begin     = gf_begin,
     lambda    = gf_lambda,
     define    = gf_define,
     ["+"]     = gf_plus,
@@ -63,9 +64,22 @@ function gf_set_ex(data, env)
   return ret
 end
 
+-- (begin e1 e2)
+function gf_begin(data, env)
+  local ret, rets
 
--- (lambda (x y) e)
--- freevars: x, y    e: e
+  if data["type"] ~= "cons" then
+    error("invalid args")
+  end
+
+  rets = eval_list(data, env)
+  ret = rets[rets["num"]]
+
+  return ret
+end
+
+-- (lambda (x y) e1 e2)
+-- freevars: x, y    e: (e1 e2)
 function gf_lambda(data, env)
   local freevars, e, env0
   local rest, i
@@ -88,17 +102,16 @@ function gf_lambda(data, env)
   end
   freevars["num"] = i - 1
 
-  e = data["right"]["left"]
+  e = data["right"]
 
   env0 = new_env(env)
 
   return {type = "closure", freevars = freevars, e = e, env = env0}
 end
 
--- (define x e)
+-- (define x e1 e2)
 function gf_define(data, env)
-  local genv
-  local ret
+  local ret, rets
 
   if data["type"] ~= "cons" or data["right"]["type"] ~= "cons" then
     error("invalid args")
@@ -108,10 +121,10 @@ function gf_define(data, env)
     error("first arg should be id")
   end
 
-  ret = eval(data["right"]["left"], env)
+  rets = eval_list(data["right"], env)
+  ret = rets[rets["num"]]
 
-  genv = get_global_env(env)
-  put_var(genv, data["left"]["value"], ret)
+  put_var(env, data["left"]["value"], ret)
 
   return data["left"]
 end

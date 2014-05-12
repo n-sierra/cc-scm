@@ -31,7 +31,7 @@ function eval(data, env)
 end
 
 function apply(proc, e, env)
-  local ret
+  local ret, rets
   local rights
   local env0, freevars, i, var
 
@@ -48,7 +48,8 @@ function apply(proc, e, env)
     for i, var in ipairs(freevars) do
       put_var(env0, var, rights[i])
     end
-    ret = eval(proc["e"], env0)
+    rets = eval_list(proc["e"], env0)
+    ret = rets[rets["num"]]
   -- lua function
   elseif proc["type"] == "closure_lua" then
     func = proc["func"]
