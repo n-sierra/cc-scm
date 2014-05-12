@@ -134,6 +134,12 @@ assert(ans["value"] == 3)
 ans = eval_str("(+ 10 20)")
 assert(ans["value"] == 30)
 
+ans = eval_str("(< 10 20)")
+assert(ans["type"] == "boolean")
+assert(ans["value"] == "t")
+ans = eval_str("(< 30 20)")
+assert(ans["value"] == "f")
+
 -- Closure Test
 
 ans = eval_str("(begin (define deposit ((lambda (amount) (lambda (x) (set! amount (+ amount x)) amount)) 100)) (deposit 200))")
