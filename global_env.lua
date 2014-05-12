@@ -21,7 +21,11 @@ end
 
 -- (quote x) => x
 function gf_quote(data, env)
-  return data
+  if data["type"] ~= "cons" or data["right"]["type"] ~= "null" then
+    error("invalid args")
+  end
+
+  return data["left"]
 end
 
 -- (if e t f)
@@ -79,9 +83,11 @@ function gf_begin(data, env)
 end
 
 -- (lambda (x y) e1 e2)
--- freevars: x, y    e: (e1 e2)
+-- freevars: x, y    restvar: nil  e: (e1 e2)
+-- (lambda (x y . z) e1 e2)
+-- freevars: x, y    restvar: z    e: (e1 e2)
 function gf_lambda(data, env)
-  local freevars, e, env0
+  local freevars, restvar, e, env0
   local rest, i
 
   if data["type"] ~= "cons" or data["right"]["type"] ~= "cons" then
@@ -102,14 +108,23 @@ function gf_lambda(data, env)
   end
   freevars["num"] = i - 1
 
+  if rest["type"] == "id" then
+    restvar = rest["value"]
+  elseif rest["type"] == "null" then
+    restvar = nil
+  else
+    error("invalid args")
+  end
+
   e = data["right"]
 
   env0 = new_env(env)
 
-  return {type = "closure", freevars = freevars, e = e, env = env0}
+  return {type = "closure", freevars = freevars, restvar = restvar, e = e, env = env0}
 end
 
 -- (define x e1 e2)
+-- (define (f x y . z) e1 e2) => (define f (lambda (x y . z) e1 e2))
 function gf_define(data, env)
   local ret, rets
 
@@ -117,14 +132,21 @@ function gf_define(data, env)
     error("invalid args")
   end
 
-  if data["left"]["type"] ~= "id" then
-    error("first arg should be id")
+  -- (define x e1 e2)
+  if data["left"]["type"] == "id" then
+    rets = eval_list(data["right"], env)
+    ret = rets[rets["num"]]
+
+    put_var(env, data["left"]["value"], ret)
+  -- (define (f x y . z) e1 e2) => (define f (lambda (x y . z) e1 e2))
+  elseif data["left"]["type"] == "cons" then
+    local left, lambda
+    left = data["left"]["left"]
+    lambda = gf_lambda(make_cons(data["left"]["right"], data["right"]), env)
+    ret = gf_define(make_cons(left, make_cons(lambda, {type = "null"})), env)
+  else
+    error("invalid first arg")
   end
-
-  rets = eval_list(data["right"], env)
-  ret = rets[rets["num"]]
-
-  put_var(env, data["left"]["value"], ret)
 
   return data["left"]
 end
@@ -144,4 +166,8 @@ function gf_plus(e, env)
   end
 
   return {type = "number", value = ans}
+end
+
+function make_cons(left, right)
+  return {type = "cons", left = left, right = right}
 end

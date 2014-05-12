@@ -32,8 +32,8 @@ end
 
 function apply(proc, e, env)
   local ret, rets
-  local rights
-  local env0, freevars, i, var
+  local rights, rests
+  local env0, freevars, restvar, i
 
   -- (#closure e1 e2 ...)
   if proc["type"] == "closure" then
@@ -42,12 +42,29 @@ function apply(proc, e, env)
 
     env0 = new_env(proc["env"])
     freevars = proc["freevars"]
-    if freevars["num"] ~= rights["num"] then
-      error("invalid number of args")
+    restvar = proc["restvar"]
+    if (restvar == nil and freevars["num"] ~= rights["num"])
+      or (restvar ~= nil and freevars["num"] > rights["num"]) then
+      error("invalid number of args "
+        .. "(required " .. tostring(freevars["num"]) .. ", got " .. tostroing(rights["num"]))
     end
+
+    -- put freevars into env0
     for i, var in ipairs(freevars) do
       put_var(env0, var, rights[i])
     end
+
+    -- put restvar into env0
+    if restvar ~= nil then
+      i = rights["num"]
+      rests = {type = "null"}
+      while freevars["num"] < i do
+        rests = {type = "cons", left = rights[i], right = rests}
+        i = i - 1
+      end
+      put_var(env0, restvar, rests)
+    end
+
     rets = eval_list(proc["e"], env0)
     ret = rets[rets["num"]]
   -- lua function

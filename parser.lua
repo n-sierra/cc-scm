@@ -13,14 +13,20 @@ function parser(tokens)
 end
 
 function parse_data(tokens, pos)
-  local left, right
   local data, i
 
   if tokens[pos]["type"] == "(" then
-    data, i = parse_list(tokens, pos+1)
+    if tokens[pos+1]["type"] == ")" then
+      data = {type = "null"}
+      i = pos + 2
+    else
+      data, i = parse_list(tokens, pos+1)
+    end
   elseif tokens[pos]["type"] == "'" then
+    local left, right_left, right
     left = {type = "id", value = "quote"}
-    right, i = parse_data(tokens, pos+1)
+    right_left, i = parse_data(tokens, pos+1)
+    right = {type = "cons", left = right_left, right = {type = "null"}}
     data =  {type = "cons", left = left, right = right}
   elseif tokens[pos]["type"] == "id" then
     data = tokens[pos]

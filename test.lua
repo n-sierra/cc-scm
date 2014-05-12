@@ -38,6 +38,10 @@ assert(tokens3[1]["type"] == "'")
 assert(tokens3[2]["type"] == "id")
 assert(tokens3[2]["value"] == "sym")
 
+tokens4 = tokenizer("()")
+assert(tokens4[1]["type"] == "(")
+assert(tokens4[2]["type"] == ")")
+
 -- Parser
 
 data = parser(tokens)
@@ -56,8 +60,13 @@ assert(data2["value"] == "str")
 data3 = parser(tokens3)
 assert(data3["left"]["type"] == "id")
 assert(data3["left"]["value"] == "quote")
-assert(data3["right"]["type"] == "id")
-assert(data3["right"]["value"] == "sym")
+assert(data3["right"]["type"] == "cons")
+assert(data3["right"]["left"]["type"] == "id")
+assert(data3["right"]["left"]["value"] == "sym")
+assert(data3["right"]["right"]["type"] == "null")
+
+data4 = parser(tokens4)
+assert(data4["type"] == "null")
 
 -- Compiler
 
@@ -66,9 +75,16 @@ ans = eval(data, env)
 assert(ans["type"] == "number")
 assert(ans["value"] == 3)
 
+-- Global Environment
+
 ans = eval_str("'var")
 assert(ans["type"] == "id")
 assert(ans["value"] == "var")
+
+ans = eval_str("(quote (1 2))")
+assert(ans["type"] == "cons")
+assert(ans["left"]["value"] == 1)
+assert(ans["right"]["left"]["value"] == 2)
 
 ans = eval_str("(if #t 1 2)")
 assert(ans["value"] == 1)
@@ -78,6 +94,12 @@ assert(ans["value"] == 2)
 
 ans = eval_str("(begin (define x 1) (+ x 1))")
 assert(ans["value"] == 2)
+ans = eval_str("(begin (define (f x) (+ x 1)) (f 1))")
+assert(ans["value"] == 2)
+ans = eval_str("(begin (define (g x . y) y) (g 1 2 3))")
+assert(ans["type"] == "cons")
+assert(ans["left"]["value"] == 2)
+assert(ans["right"]["left"]["value"] == 3)
 
 ans = eval_str("(begin (define x 1) (set! x (+ x 1)) x)")
 assert(ans["value"] == 2)
@@ -86,6 +108,10 @@ ans = eval_str("((lambda (x y) (+ x y)) 10 20)")
 assert(ans["value"] == 30)
 ans = eval_str("((lambda (x) 1 2 3) 4)")
 assert(ans["value"] == 3)
+ans = eval_str("((lambda (x . y) y) 1 2 3)")
+assert(ans["type"] == "cons")
+assert(ans["left"]["value"] == 2)
+assert(ans["right"]["left"]["value"] == 3)
 
 ans = eval_str("(begin (define x 1 2 3) x)")
 assert(ans["value"] == 3)
@@ -93,9 +119,9 @@ assert(ans["value"] == 3)
 ans = eval_str("(+ 10 20)")
 assert(ans["value"] == 30)
 
--- closure test
+-- Closure Test
+
 ans = eval_str("(begin (define deposit ((lambda (amount) (lambda (x) (set! amount (+ amount x)) amount)) 100)) (deposit 200))")
 assert(ans["value"] == 300)
-
 
 print("finished all tests")
