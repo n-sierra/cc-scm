@@ -88,9 +88,10 @@ assert(ans["right"]["left"]["value"] == 2)
 
 ans = eval_str("(if #t 1 2)")
 assert(ans["value"] == 1)
-
 ans = eval_str("(if #f 1 2)")
 assert(ans["value"] == 2)
+ans = eval_str("(if #t 1)")
+assert(ans["value"] == 1)
 
 ans = eval_str("(begin (define x 1) (+ x 1))")
 assert(ans["value"] == 2)

@@ -32,14 +32,20 @@ end
 function gf_if(data, env)
   local tf, ret
 
-  if data["type"] ~= "cons" or data["right"]["type"] ~= "cons" or data["right"]["right"]["type"] ~= "cons" then
+  if data["type"] ~= "cons" or data["right"]["type"] ~= "cons"
+    or (data["right"]["right"]["type"] ~= "cons" and data["right"]["right"]["type"] ~= "null") then
     error("invalid args")
   end
 
   tf = eval(data["left"], env)
   if tf["type"] == "boolean" and tf["value"] == "f" then
     -- false
-    ret = eval(data["right"]["right"]["left"], env)
+    if data["right"]["right"]["type"] == "cons" then
+      ret = eval(data["right"]["right"]["left"], env)
+    else
+      -- undefined
+      ret = {type = "null"}
+    end
   else
     -- true
     ret = eval(data["right"]["left"], env)
