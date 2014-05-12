@@ -105,6 +105,20 @@ assert(ans["right"]["left"]["value"] == 3)
 ans = eval_str("(begin (define x 1) (set! x (+ x 1)) x)")
 assert(ans["value"] == 2)
 
+ans = eval_str("(let ((x 10) (y 20)) (+ x y))")
+assert(ans["value"] == 30)
+ans = eval_str("(let ittr ((x 0) (y 0)) (if (< x 10) (ittr (+ x 1) (+ y x)) y))")
+assert(ans["value"] == 45)
+
+
+ans = eval_str("(let* ((x 10) (y (+ x 10))) (+ x y))")
+assert(ans["value"] == 30)
+
+ans = eval_str("(letrec ((double (lambda (x) (+ x x)))) (double 30))")
+assert(ans["value"] == 60)
+
+ans = eval_str("((lambda () 10))")
+assert(ans["value"] == 10)
 ans = eval_str("((lambda (x y) (+ x y)) 10 20)")
 assert(ans["value"] == 30)
 ans = eval_str("((lambda (x) 1 2 3) 4)")
