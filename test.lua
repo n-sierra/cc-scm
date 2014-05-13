@@ -29,9 +29,10 @@ assert(tokens[5]["type"] == ")")
 assert(tokens[5]["value"] == nil)
 assert(tokens[6] == nil)
 
-tokens2 = tokenizer("\"str\"")
+-- \"\\str
+tokens2 = tokenizer("\"\\\"\\\\str\"")
 assert(tokens2[1]["type"] == "string")
-assert(tokens2[1]["value"] == "str")
+assert(tokens2[1]["value"] == "\"\\str")
 
 tokens3 = tokenizer("'sym")
 assert(tokens3[1]["type"] == "'")
@@ -55,7 +56,7 @@ assert(data["right"]["right"]["right"]["type"] == "null")
 
 data2 = parser(tokens2)
 assert(data2["type"] == "string")
-assert(data2["value"] == "str")
+assert(data2["value"] == "\"\\str")
 
 data3 = parser(tokens3)
 assert(data3["left"]["type"] == "id")

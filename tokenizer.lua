@@ -54,8 +54,8 @@ function nextToken(str, pos)
   -- character
 
   -- string
-  pos, v = skip(str, "^\"([^\"]*)\"", pos)
-  if v then return pos, {type = "string", value = v} end
+  pos, v = skip(str, "^(\")", pos)
+  if v then return skip_string(str, pos) end
 
   -- boolean
   pos, v = skip(str, "^(%#t)", pos)
@@ -74,5 +74,38 @@ function skip(str, pattern, pos)
     return q+1, v
   end
   return pos, nil
+end
+
+function skip_string(str, pos)
+  local ret, v
+
+  ret = ""
+  while true do
+    if str:len() < pos then
+      error("cant find \" after " .. str:sub(pos-1, pos-1))
+    elseif str:sub(pos, pos+1)  == "\\\\" then
+      ret = ret .. "\\"
+      pos = pos + 2
+    elseif str:sub(pos, pos+1)  == "\\n" then
+      ret = ret .. "\n"
+      pos = pos + 2
+    elseif str:sub(pos, pos+1)  == "\\\"" then
+      ret = ret .. "\""
+      pos = pos + 2
+    elseif str:sub(pos, pos)  == "\\" then
+      if pos < str:len() then
+        ret = ret .. str:sub(pos+1, pos+1)
+        pos = pos + 2
+      else
+        error("cant find \" after " .. str:sub(pos,pos))
+      end
+    elseif str:sub(pos, pos)  == "\"" then
+      pos = pos + 1
+      return pos, {type = "string", value = ret}
+    else
+      ret = ret .. str:sub(pos, pos)
+      pos = pos + 1
+    end
+  end
 end
 
