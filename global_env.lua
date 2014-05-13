@@ -5,6 +5,7 @@ function make_global_env()
   funcs = {
     quote     = gf_quote,
     ["if"]    = gf_if,
+    cond      = gf_cond,
     ["set!"]  = gf_set_ex,
     let       = gf_let,
     ["let*"]  = gf_let_as,
@@ -48,7 +49,7 @@ function gf_if(data, env)
       ret = eval(data["right"]["right"]["left"], env)
     else
       -- undefined
-      ret = {type = "null"}
+      return {type = "id", value = "<undefined>"}
     end
   else
     -- true
@@ -56,6 +57,50 @@ function gf_if(data, env)
   end
 
   return ret
+end
+
+-- (cond)
+-- => <undefined>
+-- (cond (test e1 e2) ...)
+-- => (cond ...) if !test
+--    (begin e1 e2) if test
+-- (cond (test => e) ...)
+-- => (cond ...) if !test
+--    (e test) if test
+-- (cond (else e1 e2) ...)
+--    (begin e1 e2)
+function gf_cond(data, env)
+  local clause, tf
+
+  if data["type"] == "null" then
+    -- undefined
+    return {type = "id", value = "<undefined>"}
+  elseif data["type"] ~= "cons" or data["left"]["type"] ~= "cons" then
+    error("invalid args")
+  end
+
+  clause = data["left"]
+  if clause["left"]["type"] == "id" and clause["left"]["value"] == "else" then
+    return gf_begin(clause["right"], env)
+  end
+
+  tf = eval(clause["left"], env)
+
+  if tf["type"] == "boolean" and tf["value"] == "f" then
+    -- false
+    return gf_cond(data["right"], env)
+  end
+
+  -- true
+  if clause["right"]["left"]["type"] == "id" and clause["right"]["left"]["value"] == "=>" then
+    -- (cond (test => e) ...) => (e test)
+    local closure
+    closure = eval(clause["right"]["right"]["left"], env)
+    return apply(closure, make_cons(tf, {type = "null"}), env)
+  else
+    -- (cond (test e1 e2) ...) => (begin e1 e2)
+    return gf_begin(clause["right"], env)
+  end
 end
 
 -- (set! x v)
