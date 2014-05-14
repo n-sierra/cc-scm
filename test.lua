@@ -147,6 +147,9 @@ assert(ans["right"]["left"]["value"] == 3)
 ans = eval_str("(begin (define x 1 2 3) x)")
 assert(ans["value"] == 3)
 
+ans = eval_str("(do ((i 0 (+ i 1)) (j 0 (+ j 2))) ((< 9 i) (+ i j)))")
+assert(ans["value"] == 30)
+
 ans = eval_str("(and)")
 assert(ans["type"] == "boolean")
 assert(ans["value"] == "t")

@@ -10,6 +10,7 @@ function make_global_env()
     let       = gf_let,
     ["let*"]  = gf_let_as,
     letrec    = gf_letrec,
+    ["do"]    = gf_do,
     begin     = gf_begin,
     lambda    = gf_lambda,
     define    = gf_define,
@@ -271,16 +272,63 @@ function gf_letrec(data, env)
   return apply({type = "closure", freevars = freevars, restvar = nil, e = e, env = env0}, {type = "null"}, env)
 end
 
+-- (do ((var1 init1 step1) (var2 init2 step2)) (test e1 e2) c1 c2)
+-- => var1 <- init1, var2 <- init2
+--    while(test == false) {
+--      (begin c1 c2)
+--      var1 <- step1, var2 <- step2
+--    }
+--    (begin e1 e2)
+function gf_do(data, env)
+  local env0, binds, test, e, c
+
+  e = data["right"]["left"]["right"]
+  c = data["right"]["right"]
+
+  env0 = new_env(env)
+
+  binds = data["left"]
+  while binds["type"] == "cons" do
+    local bind, v
+    bind = binds["left"]
+    v = eval(bind["right"]["left"], env)
+    put_var(env0, bind["left"]["value"], v)
+    binds = binds["right"]
+  end
+
+  if binds["type"] ~= "null" then
+    error("invalid args")
+  end
+
+  test = eval(data["right"]["left"]["left"], env0)
+  while test["type"] == "boolean" and test["value"] == "f" do
+    gf_begin(c, env0)
+    binds = data["left"]
+    while binds["type"] == "cons" do
+      local bind, v
+      bind = binds["left"]
+      v = eval(bind["right"]["right"]["left"], env0)
+      put_var(env0, bind["left"]["value"], v)
+      binds = binds["right"]
+    end
+    test = eval(data["right"]["left"]["left"], env0)
+  end
+
+  return gf_begin(e, env0)
+end
+
 -- (begin e1 e2)
 function gf_begin(data, env)
   local ret, rets
 
-  if data["type"] ~= "cons" then
+  if data["type"] == "null" then
+    ret =  {type = "id", value = "<undefined>"}
+  elseif data["type"] == "cons" then
+    rets = eval_list(data, env)
+    ret = rets[rets["num"]]
+  else
     error("invalid args")
   end
-
-  rets = eval_list(data, env)
-  ret = rets[rets["num"]]
 
   return ret
 end
@@ -437,7 +485,6 @@ function gf_lt(e, env)
 
   return {type = "boolean", value = ans}
 end
-
 
 function make_cons(left, right)
   return {type = "cons", left = left, right = right}
