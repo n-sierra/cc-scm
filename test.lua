@@ -76,6 +76,29 @@ ans = eval(data, env)
 assert(ans["type"] == "number")
 assert(ans["value"] == 3)
 
+-- Some useful functions
+do
+  local data1 = eval_str("'(a b c)")
+  local data2 = eval_str("'()")
+  local data3 = eval_str("'a")
+  local data4 = eval_str("'(a . b)")
+  assert(is_list(data1, nil) == true)
+  assert(is_list(data1, 0)   == false)
+  assert(is_list(data1, 2)   == false)
+  assert(is_list(data1, 3)   == true)
+  assert(is_list(data1, 4)   == false)
+  assert(is_list(data1, function(x) return x == 3 end) == true)
+  assert(is_list(data1, function(x) return x ~= 3 end) == false)
+  assert(is_list(data2, nil) == true)
+  assert(is_list(data2, 0)   == true)
+  assert(is_list(data2, 1)   == false)
+  assert(is_list(data3, nil) == false)
+  assert(is_list(data3, 0)   == false)
+  assert(is_list(data4, nil) == false)
+  assert(is_list(data4, 0)   == false)
+  assert(is_list(data4, 1)   == false)
+end
+
 -- Global Environment
 
 ans = eval_str("'var")
@@ -125,7 +148,6 @@ ans = eval_str("(let ((x 10) (y 20)) (+ x y))")
 assert(ans["value"] == 30)
 ans = eval_str("(let ittr ((x 0) (y 0)) (if (< x 10) (ittr (+ x 1) (+ y x)) y))")
 assert(ans["value"] == 45)
-
 
 ans = eval_str("(let* ((x 10) (y (+ x 10))) (+ x y))")
 assert(ans["value"] == 30)

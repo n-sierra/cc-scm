@@ -29,26 +29,26 @@ end
 
 -- (quote x) => x
 function gf_quote(data, env)
-  if data["type"] ~= "cons" or data["right"]["type"] ~= "null" then
-    error("invalid args")
+  if not is_list(data, 1) then
+    error("wrong syntax")
   end
 
   return data["left"]
 end
 
 -- (if e t f)
+-- (if e t)
 function gf_if(data, env)
   local tf, ret
 
-  if data["type"] ~= "cons" or data["right"]["type"] ~= "cons"
-    or (data["right"]["right"]["type"] ~= "cons" and data["right"]["right"]["type"] ~= "null") then
-    error("invalid args")
+  if not is_list(data, function(x) return x==2 or x==3 end) then
+    error("wrong syntax")
   end
 
   tf = eval(data["left"], env)
   if tf["type"] == "boolean" and tf["value"] == "f" then
     -- false
-    if data["right"]["right"]["type"] == "cons" then
+    if is_list(data, 3) then
       ret = eval(data["right"]["right"]["left"], env)
     else
       -- undefined
@@ -75,15 +75,20 @@ end
 function gf_cond(data, env)
   local clause, tf
 
-  if data["type"] == "null" then
+  if is_list(data, 0) then
     -- undefined
     return {type = "id", value = "<undefined>"}
-  elseif data["type"] ~= "cons" or data["left"]["type"] ~= "cons" then
+  elseif not is_list(data, function(x) return x>=1 end) then
     error("invalid args")
   end
 
   clause = data["left"]
+  if not is_list(clause, function(x) return x>=1 end) then
+    error("invalid args")
+  end
+
   if clause["left"]["type"] == "id" and clause["left"]["value"] == "else" then
+    -- (else ...)
     return gf_begin(clause["right"], env)
   end
 
@@ -95,7 +100,7 @@ function gf_cond(data, env)
   end
 
   -- true
-  if clause["right"]["left"]["type"] == "id" and clause["right"]["left"]["value"] == "=>" then
+  if is_list(clause, 3) and clause["right"]["left"]["type"] == "id" and clause["right"]["left"]["value"] == "=>" then
     -- (cond (test => e) ...) => (e test)
     local closure
     closure = eval(clause["right"]["right"]["left"], env)
@@ -110,7 +115,7 @@ end
 function gf_set_ex(data, env)
   local ret
 
-  if data["type"] ~= "cons" or data["right"]["type"] ~= "cons" then
+  if not is_list(data, 2) then
     error("invalid args")
   end
 
@@ -134,10 +139,11 @@ function gf_let(data, env)
   local tag, rest, e, closure, xs, args
   local i, n, xs0, args0
 
-  if data["left"]["type"] == "cons" then
+  if is_list(data, function(x) return 1<=x end) and is_list(data["left"], nil) then
+    tag = nil
     rest = data["left"]
     e = data["right"]
-  elseif data["left"]["type"] == "id" then
+  elseif is_list(data, function(x) return 2<=x end) and data["left"]["type"] == "id" then
     tag = data["left"]
     rest = data["right"]["left"]
     e = data["right"]["right"]
@@ -151,6 +157,9 @@ function gf_let(data, env)
   while rest["type"] == "cons" do
     local xa
     xa = rest["left"]
+    if not is_list(xa, 2) then
+      error("invalid args")
+    end
     xs0[i] = xa["left"]
     args0[i] = xa["right"]["left"]
     rest = rest["right"]
@@ -167,14 +176,10 @@ function gf_let(data, env)
     i = i - 1
   end
 
-  if rest["type"] ~= "null" then
-    error("invalid args")
-  end
-
-  if data["left"]["type"] == "cons" then
+  if tag == nil then
     closure = gf_lambda(make_cons(xs, e), env)
     return eval(make_cons(closure, args), env)
-  elseif data["left"]["type"] == "id" then
+  else
     local a, letrec
     closure = make_cons({type = "id", value = "lambda"}, make_cons(xs, e))
     a = make_cons(make_cons(tag, make_cons(closure, {type = "null"})), {type = "null"})
@@ -190,7 +195,7 @@ function gf_let_as(data, env)
   local rest, e, xs, args, env0, closure, freevars
   local i, n
 
-  if data["left"]["type"] ~= "cons" then
+  if not (is_list(data, function(x) return 1<=x end) and is_list(data["left"], nil)) then
     error("invalid args")
   end
 
@@ -212,10 +217,6 @@ function gf_let_as(data, env)
     i = i + 1
   end
   n = i - 1
-
-  if rest["type"] ~= "null" then
-    error("invalid args")
-  end
 
   -- update vars
   for i, x in ipairs(xs) do
@@ -233,7 +234,7 @@ function gf_letrec(data, env)
   local rest, e, xs, args, env0, closure, freevars
   local i, n
 
-  if data["left"]["type"] ~= "cons" then
+  if not (is_list(data, function(x) return 1<=x end) and is_list(data["left"], nil)) then
     error("invalid args")
   end
 
@@ -254,10 +255,6 @@ function gf_letrec(data, env)
     i = i + 1
   end
   n = i - 1
-
-  if rest["type"] ~= "null" then
-    error("invalid args")
-  end
 
   -- put vars temporarily
   for i, x in ipairs(xs) do
@@ -282,6 +279,12 @@ end
 function gf_do(data, env)
   local env0, binds, test, e, c
 
+  if not (is_list(data, function(x) return 2<=x end)
+    and is_list(data["left"], nil)
+    and is_list(data["right"]["left"], function(x) return 1<=x end)) then
+    error("invalid args")
+  end
+
   e = data["right"]["left"]["right"]
   c = data["right"]["right"]
 
@@ -291,13 +294,12 @@ function gf_do(data, env)
   while binds["type"] == "cons" do
     local bind, v
     bind = binds["left"]
+    if not (is_list(bind, 3) and bind["left"]["type"] == "id") then
+      error("invalid args")
+    end
     v = eval(bind["right"]["left"], env)
     put_var(env0, bind["left"]["value"], v)
     binds = binds["right"]
-  end
-
-  if binds["type"] ~= "null" then
-    error("invalid args")
   end
 
   test = eval(data["right"]["left"]["left"], env0)
@@ -321,9 +323,9 @@ end
 function gf_begin(data, env)
   local ret, rets
 
-  if data["type"] == "null" then
-    ret =  {type = "id", value = "<undefined>"}
-  elseif data["type"] == "cons" then
+  if is_list(data, 0) then
+    ret = {type = "id", value = "<undefined>"}
+  elseif is_list(data, nil) then
     rets = eval_list(data, env)
     ret = rets[rets["num"]]
   else
@@ -341,7 +343,7 @@ function gf_lambda(data, env)
   local freevars, restvar, e, env0
   local rest, i
 
-  if data["type"] ~= "cons" or data["right"]["type"] ~= "cons" then
+  if not is_list(data, function(x) return 2<=x end) then
     error("invalid args")
   end
 
@@ -379,7 +381,7 @@ end
 function gf_define(data, env)
   local ret, rets
 
-  if data["type"] ~= "cons" or data["right"]["type"] ~= "cons" then
+  if not is_list(data, function(x) return 2<=x end) then
     error("invalid args")
   end
 
@@ -387,7 +389,6 @@ function gf_define(data, env)
   if data["left"]["type"] == "id" then
     rets = eval_list(data["right"], env)
     ret = rets[rets["num"]]
-
     put_var(env, data["left"]["value"], ret)
   -- (define (f x y . z) e1 e2) => (define f (lambda (x y . z) e1 e2))
   elseif data["left"]["type"] == "cons" then
@@ -406,6 +407,10 @@ end
 function gf_and(data, env)
   local tf
 
+  if not is_list(data, null) then
+    error("invalid args")
+  end
+
   tf = {type = "boolean", value = "t"}
   while data["type"] == "cons" do
     tf = eval(data["left"], env)
@@ -416,15 +421,14 @@ function gf_and(data, env)
     data = data["right"]
   end
 
-  if data["type"] ~= "null" then
-    error("invalid args")
-  end
-
   return tf
 end
 
 -- (or t1 t2 t3)
 function gf_or(data, env)
+  if not is_list(data, null) then
+    error("invalid args")
+  end
 
   while data["type"] == "cons" do
     local tf
@@ -436,14 +440,8 @@ function gf_or(data, env)
     data = data["right"]
   end
 
-  if data["type"] ~= "null" then
-    error("invalid args")
-  end
-
   return {type = "boolean", value = "f"}
 end
-
-
 
 -- (+ a) => a
 -- (+ a b c) => a + b + c
@@ -488,4 +486,30 @@ end
 
 function make_cons(left, right)
   return {type = "cons", left = left, right = right}
+end
+
+-- (a b c), nil => true
+-- a, nil => false
+-- (a b c), 3 => true
+-- (a b c), 2 => false
+-- a, 3 => false
+-- (a b c), function(x) return x > 2 end => true
+function is_list(data, n)
+  local i = 0
+
+  while data["type"] == "cons" do
+    i = i + 1
+    data = data["right"]
+  end
+
+  if type(n) == "nil" then
+    return data["type"] == "null"
+  elseif type(n) == "number" then
+    return n == i and data["type"] == "null"
+  elseif type(n) == "function" then
+    return n(i) and data["type"] == "null"
+  else
+    error("2nd arg should be number or function")
+  end
+
 end

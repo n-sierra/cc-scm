@@ -45,7 +45,7 @@ function apply(proc, e, env)
     restvar = proc["restvar"]
     if (restvar == nil and freevars["num"] ~= rights["num"])
       or (restvar ~= nil and freevars["num"] > rights["num"]) then
-      error("invalid number of args "
+      error("wrong number of args "
         .. "(required " .. tostring(freevars["num"]) .. ", got " .. tostroing(rights["num"]))
     end
 
@@ -66,7 +66,11 @@ function apply(proc, e, env)
     end
 
     rets = eval_list(proc["e"], env0)
-    ret = rets[rets["num"]]
+    if rets["num"] == 0 then
+      ret = {type = "id", value = "<undefined>"}
+    else
+      ret = rets[rets["num"]]
+    end
   -- lua function
   elseif proc["type"] == "closure_lua" then
     func = proc["func"]
