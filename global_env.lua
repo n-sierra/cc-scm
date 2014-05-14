@@ -13,6 +13,8 @@ function make_global_env()
     begin     = gf_begin,
     lambda    = gf_lambda,
     define    = gf_define,
+    ["and"]   = gf_and,
+    ["or"]    = gf_or,
     ["+"]     = gf_plus,
     ["<"]     = gf_lt,
   }
@@ -351,6 +353,49 @@ function gf_define(data, env)
 
   return data["left"]
 end
+
+-- (and t1 t2 t3)
+function gf_and(data, env)
+  local tf
+
+  tf = {type = "boolean", value = "t"}
+  while data["type"] == "cons" do
+    tf = eval(data["left"], env)
+    if tf["type"] == "boolean" and tf["value"] == "f" then
+      -- false
+      return {type = "boolean", value = "f"}
+    end
+    data = data["right"]
+  end
+
+  if data["type"] ~= "null" then
+    error("invalid args")
+  end
+
+  return tf
+end
+
+-- (or t1 t2 t3)
+function gf_or(data, env)
+
+  while data["type"] == "cons" do
+    local tf
+    tf = eval(data["left"], env)
+    if not (tf["type"] == "boolean" and tf["value"] == "f") then
+      -- true
+      return tf
+    end
+    data = data["right"]
+  end
+
+  if data["type"] ~= "null" then
+    error("invalid args")
+  end
+
+  return {type = "boolean", value = "f"}
+end
+
+
 
 -- (+ a) => a
 -- (+ a b c) => a + b + c
