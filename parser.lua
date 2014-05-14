@@ -5,7 +5,7 @@ function parser(tokens)
 
   data, pos = parse_data(tokens, 1)
 
-  if tokens[pos] ~= nil then
+  if tokens["num"]+1 ~= pos then
     error("error at parsing")
   end
 

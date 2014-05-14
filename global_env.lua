@@ -16,6 +16,7 @@ function make_global_env()
     define    = gf_define,
     ["and"]   = gf_and,
     ["or"]    = gf_or,
+    ["load"]  = gf_load,
     ["+"]     = gf_plus,
     ["<"]     = gf_lt,
   }
@@ -441,6 +442,38 @@ function gf_or(data, env)
   end
 
   return {type = "boolean", value = "f"}
+end
+
+-- (load filename)
+function gf_load(data, env)
+  local ret
+  local fn, h
+
+  if not is_list(data, 1) then
+    error("invalid args")
+  end
+
+  fn = eval(data["left"], env)
+  if fn["type"] ~= "string" then
+    error("1st arg should be string")
+  end
+
+  h = io.open(fn["value"], "r")
+  if h == nil then
+    error("file does not exist: " .. fn["value"])
+  end
+
+  do
+    local str, tokens, data
+    str = h:read("*a")
+    tokens = tokenizer(str)
+    data = parser(tokens)
+    ret = eval(data, env)
+  end
+
+  h:close()
+
+  return ret
 end
 
 -- (+ a) => a

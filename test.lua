@@ -17,7 +17,7 @@ print("starting tests...")
 
 --Tokenizer
 
-tokens = tokenizer("(+ 1 2)")
+tokens = tokenizer("(+ 1 2) ")
 assert(tokens[0] == nil)
 assert(tokens[1]["type"] == "(")
 assert(tokens[1]["value"] == nil)
@@ -201,6 +201,18 @@ ans = eval_str("(or #f 20)")
 assert(ans["value"] == 20)
 ans = eval_str("(or #t x)")
 assert(ans["value"] == "t")
+
+do
+  local fn = "test.scm"
+  local h = io.open(fn, "r")
+  if h == nil then
+    error("the test file does not exist: " .. fn)
+  end
+  h:close()
+
+  ans = eval_str("(load \"test.scm\")")
+  assert(ans["value"] == "t")
+end
 
 ans = eval_str("(+ 10 20)")
 assert(ans["value"] == 30)

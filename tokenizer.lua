@@ -8,27 +8,38 @@ function tokenizer(str)
   len = string.len(str)
   i = 1
 
-  while(pos <= len) do
+  pos = skip_ws(str, pos)
+
+  while pos <= len do
     pos, v = nextToken(str, pos)
     if not v then
       error("cannot recognize token")
       return nil
     end
+    pos = skip_ws(str, pos)
     tokens[i] = v
     i = i + 1
   end
 
+  tokens["num"] = i - 1
+
   return tokens
 end
 
-function nextToken(str, pos)
-  local v
-
+function skip_ws(str, pos)
   -- white space
   pos, _ = skip(str, "^%s*", pos)
 
   -- comment
   pos, _ = skip(str, "^;%a*", pos)
+
+  return pos
+end
+
+
+
+function nextToken(str, pos)
+  local v
 
   --
   v = nil
