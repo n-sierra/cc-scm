@@ -149,6 +149,8 @@ assert(ans["value"] == 3)
 
 ans = eval_str("(do ((i 0 (+ i 1)) (j 0 (+ j 2))) ((< 9 i) (+ i j)))")
 assert(ans["value"] == 30)
+ans = eval_str("(let ((i 0)) (do ((j 0 (+ j 1))) ((< 9 j) i) (set! i (+ i j))))")
+assert(ans["value"] == 45)
 
 ans = eval_str("(and)")
 assert(ans["type"] == "boolean")
