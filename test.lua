@@ -202,6 +202,8 @@ assert(ans["value"] == 20)
 ans = eval_str("(or #t x)")
 assert(ans["value"] == "t")
 
+-- load
+
 do
   local fn = "test.scm"
   local h = io.open(fn, "r")
@@ -214,14 +216,47 @@ do
   assert(ans["value"] == "t")
 end
 
+-- number
+
+ans = eval_str("(+ 10)")
+assert(ans["value"] == 10)
 ans = eval_str("(+ 10 20)")
 assert(ans["value"] == 30)
+
+ans = eval_str("(- 20)")
+assert(ans["value"] == -20)
+ans = eval_str("(- 20 10 10)")
+assert(ans["value"] == 0)
+
+ans = eval_str("(* 20)")
+assert(ans["value"] == 20)
+ans = eval_str("(* 20 10 10)")
+assert(ans["value"] == 2000)
+
+ans = eval_str("(/ 1)")
+assert(ans["value"] == 1)
+ans = eval_str("(/ 4 2 1)")
+assert(ans["value"] == 2)
+
+ans = eval_str("(= (+ 1 2) (+ 2 1))")
+assert(ans["value"] == "t")
 
 ans = eval_str("(< 10 20)")
 assert(ans["type"] == "boolean")
 assert(ans["value"] == "t")
 ans = eval_str("(< 30 20)")
 assert(ans["value"] == "f")
+ans = eval_str("(< 0 10 20)")
+assert(ans["value"] == "t")
+
+ans = eval_str("(<= 30 20)")
+assert(ans["value"] == "f")
+
+ans = eval_str("(> 30 20)")
+assert(ans["value"] == "t")
+
+ans = eval_str("(>= 30 20)")
+assert(ans["value"] == "t")
 
 -- Closure Test
 

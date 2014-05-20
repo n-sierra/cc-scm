@@ -1,3 +1,5 @@
+require("basic_functions")
+
 function make_global_env()
   local env = new_env(nil)
   local funcs
@@ -16,12 +18,13 @@ function make_global_env()
     define    = gf_define,
     ["and"]   = gf_and,
     ["or"]    = gf_or,
-    ["load"]  = gf_load,
-    ["+"]     = gf_plus,
-    ["<"]     = gf_lt,
   }
 
   for name, func in pairs(funcs) do
+    put_var(env, name, {type = "closure_lua", func = func})
+  end
+
+  for name, func in pairs(get_basic_funcs()) do
     put_var(env, name, {type = "closure_lua", func = func})
   end
 
@@ -442,79 +445,6 @@ function gf_or(data, env)
   end
 
   return {type = "boolean", value = "f"}
-end
-
--- (load filename)
-function gf_load(data, env)
-  local ret
-  local fn, h
-
-  if not is_list(data, 1) then
-    error("invalid args")
-  end
-
-  fn = eval(data["left"], env)
-  if fn["type"] ~= "string" then
-    error("1st arg should be string")
-  end
-
-  h = io.open(fn["value"], "r")
-  if h == nil then
-    error("file does not exist: " .. fn["value"])
-  end
-
-  do
-    local str, tokens, data
-    str = h:read("*a")
-    tokens = tokenizer(str)
-    data = parser(tokens)
-    ret = eval(data, env)
-  end
-
-  h:close()
-
-  return ret
-end
-
--- (+ a) => a
--- (+ a b c) => a + b + c
-function gf_plus(e, env)
-  local rights, a, ans
-
-  rights = eval_list(e, env)
-
-  ans = 0
-  for i, a in ipairs(rights) do
-    if a["type"] ~= "number" then
-      error("args should be number")
-    end
-    ans = ans + a["value"]
-  end
-
-  return {type = "number", value = ans}
-end
-
--- (< a b) => a < b
-function gf_lt(e, env)
-  local rights, ans
-
-  rights = eval_list(e, env)
-
-  if rights["num"] ~= 2 then
-    error("invalid args")
-  end
-
-  if rights[1]["type"] ~= "number" or rights[2]["type"] ~= "number" then
-    error("invalid args")
-  end
-
-  if rights[1]["value"] < rights[2]["value"] then
-    ans = "t"
-  else
-    ans = "f"
-  end
-
-  return {type = "boolean", value = ans}
 end
 
 function make_cons(left, right)
