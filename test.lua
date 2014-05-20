@@ -13,6 +13,12 @@ function eval_str(str)
   return ans
 end
 
+function eval_assert(str)
+  local ans = eval_str(str)
+  assert(ans["type"] == "boolean" and ans["value"] == "t")
+end
+
+
 print("starting tests...")
 
 --Tokenizer
@@ -322,6 +328,38 @@ ans = eval_str("(begin (define a '(10 20)) (set-car! a 30) (car a))")
 assert(ans["value"] == 30)
 ans = eval_str("(begin (define a '(10 20)) (set-cdr! a 30) (cdr a))")
 assert(ans["value"] == 30)
+
+-- boolean
+
+eval_assert("(eq? (boolean? #t) #t)")
+eval_assert("(eq? (boolean? #f) #t)")
+eval_assert("(eq? (boolean? 10) #f)")
+
+eval_assert("(eq? (not #t) #f)")
+eval_assert("(eq? (not #f) #t)")
+eval_assert("(eq? (not 10) #f)")
+
+-- string
+
+eval_assert("(eq? (string? 'a) #f)")
+eval_assert("(eq? (string? \"foo\") #t)")
+
+eval_assert("(equal? (string-append \"foo\" \"bar\") \"foobar\")")
+
+eval_assert("(equal? (string->symbol \"foo\") 'foo)")
+
+eval_assert("(equal? (symbol->string 'foo) \"foo\")")
+
+eval_assert("(equal? (string->number \"100\") 100)")
+eval_assert("(equal? (string->number \"abc\") #f)")
+
+eval_assert("(equal? (number->string 100) \"100\")")
+
+-- procedure
+
+eval_assert("(eq? (procedure? car) #t)")
+eval_assert("(eq? (procedure? (lambda (x) (+ x 1))) #t)")
+eval_assert("(eq? (procedure? 10) #f)")
 
 -- eq
 

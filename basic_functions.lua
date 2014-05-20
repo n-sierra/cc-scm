@@ -31,8 +31,17 @@ function get_basic_funcs()
     ["set-car!"] = bf_set_car_ex,
     ["set-cdr!"] = bf_set_cdr_ex,
     -- boolean
+    ["boolean?"] = bf_boolean_q,
+    ["not"]   = bf_not,
     -- string
+    ["string?"] = bf_string_q,
+    ["string-append"] = bf_string_append,
+    ["string->symbol"] = bf_string_to_symbol,
+    ["symbol->string"] = bf_symbol_to_string,
+    ["string->number"] = bf_string_to_number,
+    ["number->string"] = bf_number_to_string,
     -- procedure
+    ["procedure?"] = bf_procedure_q,
     -- eq
     ["eq?"]   = bf_eq_ex,
     ["neq?"]  = bf_neq_ex,
@@ -504,6 +513,129 @@ function bf_set_cdr_ex(data, env)
   l["right"] = data["right"]["left"]
 
   return {type = "id", value = "<undefined>"}
+end
+
+-- (boolean? #t)
+function bf_boolean_q(e, env)
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "boolean" then
+    return {type = "boolean", value = "t"}
+  else
+    return {type = "boolean", value = "f"}
+  end
+end
+
+-- (not #t)
+function bf_not(e, env)
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 1) then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "boolean" and rights[1]["value"] == "f" then
+    return {type = "boolean", value = "t"}
+  else
+    return {type = "boolean", value = "f"}
+  end
+end
+
+-- (string? "test")
+function bf_string_q(e, env)
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "string" then
+    return {type = "boolean", value = "t"}
+  else
+    return {type = "boolean", value = "f"}
+  end
+end
+
+-- (string-append "foo" "bar")
+function bf_string_append(e, env)
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 2
+    and rights[1]["type"] == "string" and rights[2]["type"] == "string") then
+    error("invalid args")
+  end
+
+  return {type = "string", value = rights[1]["value"] .. rights[2]["value"]}
+end
+
+-- (string->symbol "foo")
+function bf_string_to_symbol(e, env)
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 1 and rights[1]["type"] == "string") then
+    error("invalid args")
+  end
+
+  return {type = "id", value = rights[1]["value"]}
+end
+
+-- (symbol->string 'foo)
+function bf_symbol_to_string(e, env)
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 1 and rights[1]["type"] == "id") then
+    error("invalid args")
+  end
+
+  return {type = "string", value = rights[1]["value"]}
+end
+
+-- (string->number "100")
+function bf_string_to_number(e, env)
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 1 and rights[1]["type"] == "string") then
+    error("invalid args")
+  end
+
+  local tokens = tokenizer(rights[1]["value"])
+  local data = parser(tokens)
+
+  if data["type"] == "number" then
+    return data
+  else
+    return {type = "boolean", value = "f"}
+  end
+end
+
+-- (number->string 100)
+function bf_number_to_string(e, env)
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 1 and rights[1]["type"] == "number") then
+    error("invalid args")
+  end
+
+  return {type = "string", value = tostring(rights[1]["value"])}
+end
+
+-- (procedure? car)
+function bf_procedure_q(e, env)
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "closure" or rights[1]["type"] == "closure_lua" then
+    return {type = "boolean", value = "t"}
+  else
+    return {type = "boolean", value = "f"}
+  end
 end
 
 -- sub function for eq? and equal?
