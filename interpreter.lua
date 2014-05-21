@@ -12,11 +12,11 @@ end
 
 function data_to_string(data)
   if data["type"] == "cons" then
-    cons_to_string(data["left"], data["right"])
+    return cons_to_string(data["left"], data["right"])
   elseif data["type"] == "id" then
     return data["value"]
   elseif data["type"] == "number" then
-    return data["value"]
+    return tostring(data["value"])
   elseif data["type"] == "string" then
     return data["value"]
   elseif data["type"] == "boolean" then
