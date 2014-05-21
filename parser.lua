@@ -15,7 +15,9 @@ end
 function parse_data(tokens, pos)
   local data, i
 
-  if tokens[pos]["type"] == "(" then
+  if tokens[pos] == nil then
+    error("error at parsing")
+  elseif tokens[pos]["type"] == "(" then
     if tokens[pos+1]["type"] == ")" then
       data = {type = "null"}
       i = pos + 2

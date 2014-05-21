@@ -36,16 +36,43 @@ function data_to_string(data)
   end
 end
 
+function eval_str(str, env)
+  local tokens, data, ans_data
+  tokens = tokenizer(str)
+  if tokens["num"] == 0 then
+    return nil
+  end
+  data = parser(tokens)
+  ans_data = eval(data, env)
+  return ans_data
+end
+
+io.write("LUASCHEME INTERPRETER\n")
+
 env = make_global_env()
 
 while true do
+  local str, success, data
+
   io.write("> ")
   str = io.read()
 
-  tokens = tokenizer(str)
-  data = parser(tokens)
-  ans_data = eval(data, env)
+  if str == nil then
+    break
+  end
 
-  io.write(data_to_string(ans_data))
-  io.write("\n")
+  success, data = pcall(eval_str, str, env)
+
+  if not success then
+    io.write("[error] ")
+    io.write(data)
+    io.write("\n")
+  elseif data then
+    io.write(data_to_string(data))
+    io.write("\n")
+  else
+    -- nothing
+  end
 end
+
+io.write("\nBYE\n")
