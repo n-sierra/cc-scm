@@ -34,7 +34,7 @@ end
 -- (quote x) => x
 function gf_quote(data, env)
   if not is_list(data, 1) then
-    error("wrong syntax")
+    error("wrong number of args (required 1)")
   end
 
   return data["left"]
@@ -46,7 +46,7 @@ function gf_if(data, env)
   local tf, ret
 
   if not is_list(data, function(x) return x==2 or x==3 end) then
-    error("wrong syntax")
+    error("wrong number of args (required 2 or 3)")
   end
 
   tf = eval(data["left"], env)
@@ -83,12 +83,12 @@ function gf_cond(data, env)
     -- undefined
     return {type = "id", value = "<undefined>"}
   elseif not is_list(data, function(x) return x>=1 end) then
-    error("invalid args")
+    error("wrong number of args (required >=1)")
   end
 
   clause = data["left"]
   if not is_list(clause, function(x) return x>=1 end) then
-    error("invalid args")
+    error("wrong number of args in clause (required >=1)")
   end
 
   if clause["left"]["type"] == "id" and clause["left"]["value"] == "else" then
@@ -120,7 +120,7 @@ function gf_set_ex(data, env)
   local ret
 
   if not is_list(data, 2) then
-    error("invalid args")
+    error("wrong number of args (required 2)")
   end
 
   if data["left"]["type"] ~= "id" then

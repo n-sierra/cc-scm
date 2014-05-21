@@ -5,8 +5,10 @@ function parser(tokens)
 
   data, pos = parse_data(tokens, 1)
 
-  if tokens["num"]+1 ~= pos then
-    error("error at parsing")
+  if tokens["num"]+1 < pos then
+    error("end of tokens is found before finishing parser")
+  elseif pos < tokens["num"]+1 then
+    error("parser finished before parsing all tokens")
   end
 
   return data
@@ -16,7 +18,7 @@ function parse_data(tokens, pos)
   local data, i
 
   if tokens[pos] == nil then
-    error("error at parsing")
+    error("end of tokens is found before finishing parser")
   elseif tokens[pos]["type"] == "(" then
     if tokens[pos+1]["type"] == ")" then
       data = {type = "null"}
@@ -43,7 +45,7 @@ function parse_data(tokens, pos)
     data = tokens[pos]
     i = pos + 1
   else
-    error("error at parsing")
+    error("unknown type is found at parsing: " .. tokens[pos]["type"])
   end
 
   return data, i
@@ -55,13 +57,15 @@ function parse_list(tokens, pos)
 
   left, i = parse_data(tokens, pos)
 
-  if tokens[i]["type"] == ")" then
+  if tokens[i] == nil then
+    error("cant find ) or .")
+  elseif tokens[i]["type"] == ")" then
     right = {type = "null"}
     j = i + 1
   elseif tokens[i]["type"] == "." then
     right, j = parse_data(tokens, i+1)
-    if tokens[j]["type"] ~= ")" then
-      error("error at parsing")
+    if not(tokens[j] ~= nil and tokens[j]["type"] == ")") then
+      error("cant find )")
     end
     j = j + 1
   else

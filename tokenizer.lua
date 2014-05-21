@@ -14,7 +14,6 @@ function tokenizer(str)
     pos, v = nextToken(str, pos)
     if not v then
       error("cannot recognize token")
-      return nil
     end
     pos = skip_ws(str, pos)
     tokens[i] = v
@@ -35,8 +34,6 @@ function skip_ws(str, pos)
 
   return pos
 end
-
-
 
 function nextToken(str, pos)
   local v
@@ -73,7 +70,6 @@ function nextToken(str, pos)
   if v then return pos, {type = "boolean", value = "t"} end
   pos, v = skip(str, "^(%#f)", pos)
   if v then return pos, {type = "boolean", value = "f"} end
-
 
   return pos, nil
 end
