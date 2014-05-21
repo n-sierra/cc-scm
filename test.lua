@@ -347,8 +347,10 @@ eval_assert("(eq? (string? \"foo\") #t)")
 eval_assert("(equal? (string-append \"foo\" \"bar\") \"foobar\")")
 
 eval_assert("(equal? (string->symbol \"foo\") 'foo)")
+eval_assert("(equal? (string->symbol \"10\") '$10$)")
 
 eval_assert("(equal? (symbol->string 'foo) \"foo\")")
+eval_assert("(equal? (symbol->string '$10$) \"10\")")
 
 eval_assert("(equal? (string->number \"100\") 100)")
 eval_assert("(equal? (string->number \"abc\") #f)")

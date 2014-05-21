@@ -572,26 +572,61 @@ function bf_string_append(e, env)
   return {type = "string", value = rights[1]["value"] .. rights[2]["value"]}
 end
 
+-- sub function for string-symbol convertion
+function is_valid_symbol(str)
+  local p, q, v
+  p, q, v = string.find(str, "^([a-zA-Z!%$%%&*/:<=>%?%^_~%+%-][a-zA-Z!%$%%&*/:<=>%?%^_~%+%-0-9%.@]*)", 1)
+  if q == string.len(str) then
+    return true
+  end
+  return false
+end
+
+function symbol_encode(str)
+  -- WIP
+  return str
+end
+
+function symbol_decode(str_en)
+  -- WIP
+  return str_en
+end
+
 -- (string->symbol "foo")
 function bf_string_to_symbol(e, env)
+  local ans
   local rights = eval_list(e, env)
 
   if not(rights["num"] == 1 and rights[1]["type"] == "string") then
     error("invalid args")
   end
 
-  return {type = "id", value = rights[1]["value"]}
+  if not is_valid_symbol(rights[1]["value"]) then
+    ans = "$" .. symbol_encode(rights[1]["value"]) .. "$"
+  else
+    ans = rights[1]["value"]
+  end
+
+  return {type = "id", value = ans}
 end
 
 -- (symbol->string 'foo)
 function bf_symbol_to_string(e, env)
+  local ans
   local rights = eval_list(e, env)
 
   if not(rights["num"] == 1 and rights[1]["type"] == "id") then
     error("invalid args")
   end
 
-  return {type = "string", value = rights[1]["value"]}
+  if string.sub(rights[1]["value"], 1, 1) == "$" then
+    ans = string.sub(rights[1]["value"], 2, -2)
+  else
+    ans = rights[1]["value"]
+  end
+  ans = symbol_decode(ans)
+
+  return {type = "string", value = ans}
 end
 
 -- (string->number "100")
