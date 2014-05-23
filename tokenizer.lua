@@ -52,12 +52,16 @@ function nextToken(str, pos)
   if v then return pos, {type = "."} end
 
   -- identifier
-  pos, v = skip(str, "^([a-zA-Z!%$%%&*/:<=>%?%^_~%+%-][a-zA-Z!%$%%&*/:<=>%?%^_~%+%-0-9%.@]*)", pos)
+  pos, v = skip(str, "^([a-zA-Z!%$%%&*/:<=>%?%^_~][a-zA-Z!%$%%&*/:<=>%?%^_~%+%-0-9%.@]*)", pos)
   if v then return pos, {type = "id", value = v} end
 
   -- number
   pos, v = skip(str, "^([%+%-]?%d+)", pos)
   if v then return pos, {type = "number", value= tonumber(v)} end
+
+  -- identifier 2
+  pos, v = skip(str, "^([%+%-])", pos)
+  if v then return pos, {type = "id", value = v} end
 
   -- character
 

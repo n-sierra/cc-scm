@@ -16,7 +16,12 @@ function data_to_string(data)
   elseif data["type"] == "id" then
     return data["value"]
   elseif data["type"] == "number" then
-    return tostring(data["value"])
+    if data["value"] == 0 then
+      -- -0 is equal to 0
+      return "0"
+    else
+      return tostring(data["value"])
+    end
   elseif data["type"] == "string" then
     return data["value"]
   elseif data["type"] == "boolean" then

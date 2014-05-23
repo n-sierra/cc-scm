@@ -142,17 +142,32 @@ function bf_div(e, env)
   if rights["num"] < 1 then
     error("invalid args")
   elseif rights["num"] == 1 then
+    if rights[1]["value"] == 0 then
+      error("0 divides something")
+    end
     ans = 1 / rights[1]["value"]
+    if ans < 0 then
+      ans = math.ceil(ans)
+    else
+      ans = math.floor(ans)
+    end
   else
     ans = fold_ary(rights,
       function(a, x)
         if x["type"] ~= "number" then
           error("args should be number")
-        end
-        if a == nil then
+        elseif a == nil then
           return x["value"]
+        elseif x["value"] == 0 then
+          error("0 divides something")
         else
-          return a / x["value"]
+          local ans = a / x["value"]
+          if ans < 0 then
+            ans = math.ceil(ans)
+          else
+            ans = math.floor(ans)
+          end
+          return ans
         end
       end, nil)
   end
@@ -833,4 +848,3 @@ function fold_ary_r(rights, func, init)
 
   return ans
 end
-
