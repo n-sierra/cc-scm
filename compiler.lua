@@ -23,6 +23,8 @@ function eval(data, env)
     ret = data
   elseif data["type"] == "closure_lua" then
     ret = data
+  elseif data["type"] == "lua-object" then
+    ret = data
   else
     error("unknown type is found in eval: " .. data["type"])
   end

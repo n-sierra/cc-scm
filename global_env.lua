@@ -1,4 +1,5 @@
 require("basic_functions")
+require("lua_functions")
 
 function make_global_env()
   local env = new_env(nil)
@@ -6,6 +7,7 @@ function make_global_env()
 
   funcs = {
     quote     = gf_quote,
+    apply     = gf_apply,
     ["if"]    = gf_if,
     cond      = gf_cond,
     ["set!"]  = gf_set_ex,
@@ -28,6 +30,10 @@ function make_global_env()
     put_var(env, name, {type = "closure_lua", func = func})
   end
 
+  for name, func in pairs(get_lua_funcs()) do
+    put_var(env, name, {type = "closure_lua", func = func})
+  end
+
   return env
 end
 
@@ -39,6 +45,44 @@ function gf_quote(data, env)
 
   return data["left"]
 end
+
+-- (apply cons '(a b)) => (cons a b) => (a . c)
+function gf_apply(data, env)
+  local args0, rest
+  local args, i
+  local list, proc, rights
+
+  if not is_list(data, 2) then
+    error("wrong number of args (required 2)")
+  end
+
+  proc = eval(data["left"], env)
+  list = eval(data["right"]["left"], env)
+
+  if not is_list(data, nil) then
+    error("second arg should be list")
+  end
+
+  rest = list
+  args0 = {}
+  i = 1
+  while rest["type"] == "cons" do
+    args0[i] = rest["left"]
+    rest = rest["right"]
+    i = i + 1
+  end
+  n = i - 1
+
+  args = {type = "null"}
+  i = n
+  while 1 <= i do
+    args = make_cons(make_cons({type = "id", value = "quote"}, make_cons(args0[i], {type = "null"})), args)
+    i = i - 1
+  end
+
+  return apply(proc, args, env)
+end
+
 
 -- (if e t f)
 -- (if e t)
@@ -394,17 +438,17 @@ function gf_define(data, env)
     rets = eval_list(data["right"], env)
     ret = rets[rets["num"]]
     put_var(env, data["left"]["value"], ret)
+    return data["left"]
   -- (define (f x y . z) e1 e2) => (define f (lambda (x y . z) e1 e2))
   elseif data["left"]["type"] == "cons" then
     local left, lambda
     left = data["left"]["left"]
     lambda = gf_lambda(make_cons(data["left"]["right"], data["right"]), env)
     ret = gf_define(make_cons(left, make_cons(lambda, {type = "null"})), env)
+    return data["left"]["left"]
   else
     error("invalid first arg")
   end
-
-  return data["left"]
 end
 
 -- (and t1 t2 t3)

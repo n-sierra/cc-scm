@@ -116,6 +116,8 @@ assert(ans["type"] == "cons")
 assert(ans["left"]["value"] == 1)
 assert(ans["right"]["left"]["value"] == 2)
 
+eval_assert("(equal? (apply cons '(a ())) '(a))")
+
 ans = eval_str("(if #t 1 2)")
 assert(ans["value"] == 1)
 ans = eval_str("(if #f 1 2)")
@@ -403,6 +405,22 @@ ans = eval_str("(equal? \"test\" \"test\")")
 assert(ans["value"] == "t")
 ans = eval_str("(equal? \"test!\" \"test?\")")
 assert(ans["value"] == "f")
+
+-- lua
+ans = eval_str("(lua-get-g)")
+assert(ans["value"] == _G)
+
+eval_assert("(lua-object? (lua-get-g))")
+eval_assert("(lua-object? (scm->lua 100))")
+eval_assert("(not (lua-object? 100))")
+
+eval_assert([[
+(begin
+  (define type (lua-gettable (lua-get-g) (scm->lua "type")))
+  (define t (lua-call type (scm->lua 100)))
+  (define u (lua->scm (lua-gettable t (scm->lua 1))))
+  (equal? u "number"))
+]])
 
 -- Closure Test
 

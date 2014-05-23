@@ -36,6 +36,8 @@ function data_to_string(data)
     return "#closure"
   elseif data["type"] == "closure_lua" then
     return "#closure_lua"
+  elseif data["type"] == "lua-object" then
+    return "#lua-obj<" .. tostring(data["value"]) .. ">"
   else
     return "#unknown"
   end
