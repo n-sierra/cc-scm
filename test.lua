@@ -139,6 +139,8 @@ ans = eval_str("(cond (10 => (lambda (x) x)) (else 20))")
 assert(ans["value"] == 10)
 ans = eval_str("(cond (#f => (lambda (x) x)) (else 20))")
 assert(ans["value"] == 20)
+ans = eval_str("(cond (#t 10 20))")
+assert(ans["value"] == 20)
 
 ans = eval_str("(begin (define x 1) (+ x 1))")
 assert(ans["value"] == 2)

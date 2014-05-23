@@ -66,7 +66,7 @@ env = make_global_env()
 while true do
   local str, success, data
 
-  io.write("> ")
+  io.write("scm> ")
   str = io.read()
 
   if str == nil then
