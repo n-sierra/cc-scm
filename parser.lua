@@ -1,17 +1,24 @@
 require("utils")
 
-function parser(tokens)
+function parser(tokens, start)
   local data, pos
 
-  data, pos = parse_data(tokens, 1)
+  if start == nil then
+    pos = 1
+  else
+    pos = start
+  end
+
+  data, pos = parse_data(tokens, pos)
 
   if tokens["num"]+1 < pos then
     error("end of tokens is found before finishing parser")
-  elseif pos < tokens["num"]+1 then
-    error("parser finished before parsing all tokens")
+--  elseif pos < tokens["num"]+1 then
+--    error("parser finished before parsing all tokens")
   end
 
-  return data
+  -- return result of parsing and position where parser ended
+  return data, pos
 end
 
 function parse_data(tokens, pos)

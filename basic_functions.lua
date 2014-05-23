@@ -653,7 +653,11 @@ function bf_string_to_number(e, env)
   end
 
   local tokens = tokenizer(rights[1]["value"])
-  local data = parser(tokens)
+  local data, pos
+  data, pos = parser(tokens)
+  if pos < tokens["num"] + 1 then
+    error("parser finished before parsing all tokens")
+  end
 
   if data["type"] == "number" then
     return data
@@ -810,11 +814,13 @@ function bf_load(data, env)
     error("file does not exist: " .. fn["value"])
   end
 
-  do
-    local str, tokens, data
-    str = h:read("*a")
-    tokens = tokenizer(str)
-    data = parser(tokens)
+  local str, tokens, data, pos
+  str = h:read("*a")
+  tokens = tokenizer(str)
+  pos = 1
+  while pos < tokens["num"] + 1 do
+    data, pos = parser(tokens, pos)
+    -- return the last eval
     ret = eval(data, env)
   end
 

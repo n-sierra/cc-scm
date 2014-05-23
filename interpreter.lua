@@ -42,13 +42,18 @@ function data_to_string(data)
 end
 
 function eval_str(str, env)
-  local tokens, data, ans_data
+  local tokens, data, ans_data, pos
   tokens = tokenizer(str)
   if tokens["num"] == 0 then
     return nil
   end
-  data = parser(tokens)
-  ans_data = eval(data, env)
+
+  pos = 1
+  while pos < tokens["num"] + 1 do
+    data, pos = parser(tokens, pos)
+    ans_data = eval(data, env)
+  end
+
   return ans_data
 end
 
