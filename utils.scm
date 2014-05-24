@@ -81,33 +81,42 @@
           (#t (turtle-move 'back) (ittr)))))
 
 (define (tree-grow?)
-  (let ((ret (turtle "detect")))
+  (turtle "select" 1)
+  (let ((ret (turtle "compare")))
     (lua->scm ret)))
 
-(define (put-woods)
+(define (store-woods)
   (turtle "turnLeft")
   (turtle "turnLeft")
   (let ittr ((n 2))
     (cond
-      ((<= 17 n) (turtle "select" i) (turtle "drop") (ittr (+ n 1)))
+      ((<= n 16) (turtle "select" n) (turtle "drop") (ittr (+ n 1)))
       (#t #t)))
-  (turtle "select" 1)
   (turtle "turnLeft")
   (turtle "turnLeft"))
 
+(define (get-sapling)
+  (turtle "select" 2)
+  (turtle "suckDown" 1))
+
+(define (put-sapling)
+  (turtle "select" 2)
+  (turtle "place"))
+
 (define (cut-woods)
+  (turtle "select" 1)
   (let ittr ()
     (cond
-      ((block-forward?) (turtle "dig") (turtle-move 'up))
+      ((block-forward?) (turtle "dig") (turtle "digUp") (turtle-move 'up) (ittr))
       (#t #t)))
   (let ittr ()
     (cond
-      ((not (block-down?)) (turtle-move 'down))
+      ((not (block-down?)) (turtle-move 'down) (ittr))
       (#t #t))))
 
 (define (wood-cutter)
   (let ittr ()
-    (cond ((tree-grow?) (cut-wods) (put-woods))
-          (#t (call-cc-api "os" "sleep" 1)))))
+    (cond ((tree-grow?) (cut-woods) (store-woods) (get-sapling) (put-sapling) (ittr))
+          (#t (call-cc-api "os" "sleep" 1) (ittr)))))
 
 #t
