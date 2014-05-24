@@ -5,7 +5,12 @@ ifiles = {
   "basic_functions.lua",
   "lua_functions.lua",
   "global_env.lua",
-  "interpreter.lua",
+  "utils.lua",
+-- #if CC
+  "cc_interpreter.lua",
+-- #else
+--  "interpreter.lua",
+-- #end
 }
 
 ofile = "cc_scm"
