@@ -87,7 +87,7 @@ end
 -- (if e t f)
 -- (if e t)
 function gf_if(data, env)
-  local tf, ret
+  local tf
 
   if not is_list(data, function(x) return x==2 or x==3 end) then
     error("wrong number of args (required 2 or 3)")
@@ -97,17 +97,15 @@ function gf_if(data, env)
   if tf["type"] == "boolean" and tf["value"] == "f" then
     -- false
     if is_list(data, 3) then
-      ret = eval(data["right"]["right"]["left"], env)
+      return eval(data["right"]["right"]["left"], env)
     else
       -- undefined
       return {type = "id", value = "<undefined>"}
     end
   else
     -- true
-    ret = eval(data["right"]["left"], env)
+    return eval(data["right"]["left"], env)
   end
-
-  return ret
 end
 
 -- (cond)
@@ -182,7 +180,7 @@ end
 -- (let ((x a) (y b)) e1 e2)
 -- => ((lambda (x y) e1 e2) a b)
 -- (let tag ((x a) (y b)) e1 e2)
--- => ((letrec ((tag (lambda (x y) e1 e2))) tag) a a)
+-- => ((letrec ((tag (lambda (x y) e1 e2))) tag) a b)
 function gf_let(data, env)
   local tag, rest, e, closure, xs, args
   local i, n, xs0, args0
@@ -372,15 +370,20 @@ function gf_begin(data, env)
   local ret, rets
 
   if is_list(data, 0) then
-    ret = {type = "id", value = "<undefined>"}
+    return {type = "id", value = "<undefined>"}
   elseif is_list(data, nil) then
-    rets = eval_list(data, env)
-    ret = rets[rets["num"]]
-  else
-    error("invalid args")
+    while data["type"] == "cons" do
+      if data["right"]["type"] == "null" then
+        -- tail recursion
+        return eval(data["left"], env)
+      end
+      eval(data["left"], env)
+      data = data["right"]
+    end
   end
 
-  return ret
+  -- non-list or unexpected condition
+  error("invalid args")
 end
 
 -- (lambda (x y) e1 e2)
@@ -473,14 +476,20 @@ function gf_and(data, env)
 end
 
 -- (or t1 t2 t3)
+-- (or) => #f
+-- (or obj) => obj
 function gf_or(data, env)
-  if not is_list(data, null) then
+  if not is_list(data, nil) then
     error("invalid args")
   end
 
   while data["type"] == "cons" do
-    local tf
-    tf = eval(data["left"], env)
+    if data["right"]["type"] == "null" then
+      -- tail recursion
+      return eval(data["left"], env)
+    end
+
+    local tf = eval(data["left"], env)
     if not (tf["type"] == "boolean" and tf["value"] == "f") then
       -- true
       return tf

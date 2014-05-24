@@ -15,6 +15,10 @@
         (first-ret (lua-gettable ret (scm->lua 1))))
     first-ret))
 
+(define (display str)
+  (call-cc-api "io" "write" (scm->lua str) (scm->lua "\n"))
+  #t)
+
 (define (turtle func-name . args)
   (apply call-cc-api (cons "turtle" (cons func-name args))))
 
@@ -60,12 +64,50 @@
     (turtle "turnLeft")
     (lua->scm ret)))
 
+(define (block-up?)
+  (let ((ret (turtle "detectUp")))
+    (lua->scm ret)))
+
+(define (block-down?)
+  (let ((ret (turtle "detectDown")))
+    (lua->scm ret)))
+
 (define (maze)
   (let ittr ()
-    (cond ((goal?) (turtle-dance))
+    (cond ((goal?) (turtle-dance) (turtle-move 'back))
           ((not (block-right?)) (turtle-move 'right) (ittr))
           ((not (block-forward?)) (turtle-move 'forward) (ittr))
           ((not (block-left?)) (turtle-move 'left) (ittr))
           (#t (turtle-move 'back) (ittr)))))
+
+(define (tree-grow?)
+  (let ((ret (turtle "detect")))
+    (lua->scm ret)))
+
+(define (put-woods)
+  (turtle "turnLeft")
+  (turtle "turnLeft")
+  (let ittr ((n 2))
+    (cond
+      ((<= 17 n) (turtle "select" i) (turtle "drop") (ittr (+ n 1)))
+      (#t #t)))
+  (turtle "select" 1)
+  (turtle "turnLeft")
+  (turtle "turnLeft"))
+
+(define (cut-woods)
+  (let ittr ()
+    (cond
+      ((block-forward?) (turtle "dig") (turtle-move 'up))
+      (#t #t)))
+  (let ittr ()
+    (cond
+      ((not (block-down?)) (turtle-move 'down))
+      (#t #t))))
+
+(define (wood-cutter)
+  (let ittr ()
+    (cond ((tree-grow?) (cut-wods) (put-woods))
+          (#t (call-cc-api "os" "sleep" 1)))))
 
 #t

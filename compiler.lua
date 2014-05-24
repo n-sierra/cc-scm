@@ -5,9 +5,10 @@ function eval(data, env)
 
   if data["type"] == "cons" then
     left = eval(data["left"], env)
-    ret = apply(left, data["right"], env)
+    -- tail recursion
+    return apply(left, data["right"], env)
   elseif data["type"] == "id" then
-    ret = get_var(env, data["value"])
+    ret =  get_var(env, data["value"])
     if not ret then
       error("undefined variable is refered: " .. data["value"])
     end
@@ -67,21 +68,26 @@ function apply(proc, e, env)
       put_var(env0, restvar, rests)
     end
 
-    rets = eval_list(proc["e"], env0)
-    if rets["num"] == 0 then
-      ret = {type = "id", value = "<undefined>"}
-    else
-      ret = rets[rets["num"]]
+    local rest = proc["e"]
+    while rest["type"] == "cons" do
+      if rest["right"]["type"] == "null" then
+        -- tail recursion
+        return eval(rest["left"], env0)
+      end
+      eval(rest["left"], env0)
+      rest = rest["right"]
     end
+
+    -- null
+    return {type = "id", value = "<undefined>"}
+
   -- lua function
   elseif proc["type"] == "closure_lua" then
     func = proc["func"]
-    ret = func(e, env)
+    return func(e, env)
   else
     error("Non-proc is not apply-able")
   end
-
-  return ret
 end
 
 function eval_list(e, env)
