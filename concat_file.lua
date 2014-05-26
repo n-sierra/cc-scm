@@ -6,10 +6,10 @@ ifiles = {
   "lua_functions.lua",
   "global_env.lua",
   "utils.lua",
--- #if CC
-  "cc_interpreter.lua",
+-- #if custom-made for ComputerCraft
+  "cc_repl.lua",
 -- #else
---  "interpreter.lua",
+--  "repl.lua",
 -- #end
 }
 
