@@ -1,13 +1,13 @@
 function eval_str(str, env)
   local tokens, data, ans_data, pos
-  tokens = tokenizer(str)
+  tokens = tokenize(str)
   if tokens["num"] == 0 then
     return nil
   end
 
   pos = 1
   while pos < tokens["num"] + 1 do
-    data, pos = parser(tokens, pos)
+    data, pos = parse(tokens, pos)
     ans_data = eval(data, env)
   end
 
