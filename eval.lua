@@ -22,6 +22,10 @@ function eval(data, env)
     ret = data
   elseif data["type"] == "closure_lua" then
     ret = data
+  elseif data["type"] == "clos-class" then
+    ret = data
+  elseif data["type"] == "clos-instance" then
+    ret = data
   elseif data["type"] == "lua-object" then
     ret = data
   else

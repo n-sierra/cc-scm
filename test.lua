@@ -2,6 +2,7 @@ require("parse")
 require("tokenize")
 require("eval")
 require("global_env")
+require("utils")
 
 function eval_str(str)
   local tokens, data, env, ans
@@ -421,6 +422,32 @@ eval_assert([[
   (define t (lua-call type (scm->lua 100)))
   (define u (lua->scm (lua-gettable t (scm->lua 1))))
   (equal? u "number"))
+]])
+
+-- clos
+eval_assert([[
+(begin
+  (define (is-of? instance class)
+    (cond ((null? class) #f)
+          ((eq? class (class-of instance)) #t)
+          (#t (is-of instance (superclass-of class)))))
+
+  (define-class vector '())
+  (define (dot a b)
+    (if (and (is-of? a vector) (is-of? b vector))
+      (+ (* (refer-slot a x) (refer-slot b x))
+         (* (refer-slot a y) (refer-slot b y)))
+      (error "invalid type")))
+
+  (define (make-vector x y)
+    (let ((a (make-instance vector)))
+      (register-slot a x x)
+      (register-slot a y y)
+      a))
+
+  (define a (make-vector 10 20))
+  (define b (make-vector 20 10))
+  (equal? (dot a b) 400))
 ]])
 
 -- Closure Test

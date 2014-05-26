@@ -1,4 +1,5 @@
 require("basic_functions")
+require("clos_functions")
 require("lua_functions")
 
 function make_global_env()
@@ -27,6 +28,10 @@ function make_global_env()
   end
 
   for name, func in pairs(get_basic_funcs()) do
+    put_var(env, name, {type = "closure_lua", func = func})
+  end
+
+  for name, func in pairs(get_clos_funcs()) do
     put_var(env, name, {type = "closure_lua", func = func})
   end
 

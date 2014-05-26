@@ -48,6 +48,7 @@ function get_basic_funcs()
     ["equal?"] = bf_equal_ex,
     -- meta
     ["load"]  = bf_load,
+    ["error"]  = bf_error,
   }
 
   return basic_funcs
@@ -714,6 +715,12 @@ function is_eq(e1, e2)
   elseif e1["type"] == "closure_lua" then
     -- same pointer?
     ans = (e1 == e2)
+  elseif e1["type"] == "clos-class" then
+    -- same pointer?
+    ans = (e1 == e2)
+  elseif e1["type"] == "clos-instance" then
+    -- same pointer?
+    ans = (e1 == e2)
   else
     -- unknown type
     ans = false
@@ -827,4 +834,18 @@ function bf_load(data, env)
   h:close()
 
   return ret
+end
+
+-- (error "what happened")
+function bf_error(data, env)
+  if not is_list(data, 1) then
+    error("invalid args")
+  end
+
+  local reason = eval(data["left"], env)
+  if reason["type"] ~= "string" then
+    error("1st arg should be string")
+  end
+
+  error(reason["value"])
 end
