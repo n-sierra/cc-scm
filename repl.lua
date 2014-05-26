@@ -4,6 +4,22 @@ require("eval")
 require("global_env")
 require("utils")
 
+function eval_str(str, env)
+  local tokens, data, ans_data, pos
+  tokens = tokenize(str)
+  if tokens["num"] == 0 then
+    return nil
+  end
+
+  pos = 1
+  while pos < tokens["num"] + 1 do
+    data, pos = parse(tokens, pos)
+    ans_data = eval(data, env)
+  end
+
+  return ans_data
+end
+
 io.write("LUASCHEME INTERPRETER\n")
 
 env = make_global_env()

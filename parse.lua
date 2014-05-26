@@ -1,5 +1,3 @@
-require("utils")
-
 function parse(tokens, start)
   local data, pos
 

@@ -1,5 +1,3 @@
-require("utils")
-
 function eval(data, env)
   local left, ret
 

@@ -2,7 +2,6 @@ require("parse")
 require("tokenize")
 require("eval")
 require("global_env")
-require("utils")
 
 function eval_str(str)
   local tokens, data, env, ans
