@@ -23,6 +23,7 @@ end
 io.write("LUASCHEME INTERPRETER\n")
 
 env = make_global_env()
+pcall(eval_str, "(load \"init.scm\")", env)
 
 while true do
   local str, success, data

@@ -21,7 +21,7 @@ function getdata(indent)
 
   local _, y = term.getCursorPos()
   local width, height = term.getSize()
-  
+
   local onCtrl = false
 
   term.setCursorBlink(true)
@@ -115,6 +115,7 @@ end
 io.write("LUASCHEME INTERPRETER\n")
 
 env = make_global_env()
+pcall(eval_str, "(load \"init.scm\")", env)
 
 history = {}
 
