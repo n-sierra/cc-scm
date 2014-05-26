@@ -145,3 +145,61 @@ function get_global_env(env)
 
   return env
 end
+
+-- utility functions
+
+function make_cons(left, right)
+  return {type = "cons", left = left, right = right}
+end
+
+-- (a b c), nil => true
+-- a, nil => false
+-- (a b c), 3 => true
+-- (a b c), 2 => false
+-- a, 3 => false
+-- (a b c), function(x) return x > 2 end => true
+function is_list(data, n)
+  local i = 0
+
+  while data["type"] == "cons" do
+    i = i + 1
+    data = data["right"]
+  end
+
+  if type(n) == "nil" then
+    return data["type"] == "null"
+  elseif type(n) == "number" then
+    return n == i and data["type"] == "null"
+  elseif type(n) == "function" then
+    return n(i) and data["type"] == "null"
+  else
+    error("2nd arg should be number or function")
+  end
+
+end
+
+function fold_ary(rights, func, init)
+  local ans
+
+  ans = init
+  for i, x in ipairs(rights) do
+    ans = func(ans, x)
+  end
+
+  return ans
+end
+
+function fold_ary_r(rights, func, init)
+  local ans
+  local len
+
+  ans = init
+  len = #rights
+  for i, x in ipairs(rights) do
+    i = len - i + 1
+    x = rights[i]
+    ans = func(ans, x)
+  end
+
+  return ans
+end

@@ -828,29 +828,3 @@ function bf_load(data, env)
 
   return ret
 end
-
-function fold_ary(rights, func, init)
-  local ans
-
-  ans = init
-  for i, x in ipairs(rights) do
-    ans = func(ans, x)
-  end
-
-  return ans
-end
-
-function fold_ary_r(rights, func, init)
-  local ans
-  local len
-
-  ans = init
-  len = #rights
-  for i, x in ipairs(rights) do
-    i = len - i + 1
-    x = rights[i]
-    ans = func(ans, x)
-  end
-
-  return ans
-end

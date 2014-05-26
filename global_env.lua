@@ -499,33 +499,3 @@ function gf_or(data, env)
 
   return {type = "boolean", value = "f"}
 end
-
-function make_cons(left, right)
-  return {type = "cons", left = left, right = right}
-end
-
--- (a b c), nil => true
--- a, nil => false
--- (a b c), 3 => true
--- (a b c), 2 => false
--- a, 3 => false
--- (a b c), function(x) return x > 2 end => true
-function is_list(data, n)
-  local i = 0
-
-  while data["type"] == "cons" do
-    i = i + 1
-    data = data["right"]
-  end
-
-  if type(n) == "nil" then
-    return data["type"] == "null"
-  elseif type(n) == "number" then
-    return n == i and data["type"] == "null"
-  elseif type(n) == "function" then
-    return n(i) and data["type"] == "null"
-  else
-    error("2nd arg should be number or function")
-  end
-
-end
