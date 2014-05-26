@@ -1,6 +1,4 @@
-require("parser")
-require("tokenizer")
-require("compiler")
+require("eval")
 
 function get_lua_funcs()
   local lua_funcs = {

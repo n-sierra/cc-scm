@@ -1,6 +1,6 @@
-require("parser")
-require("tokenizer")
-require("compiler")
+require("parse")
+require("tokenize")
+require("eval")
 
 function get_basic_funcs()
   local basic_funcs = {
@@ -652,9 +652,9 @@ function bf_string_to_number(e, env)
     error("invalid args")
   end
 
-  local tokens = tokenizer(rights[1]["value"])
+  local tokens = tokenize(rights[1]["value"])
   local data, pos
-  data, pos = parser(tokens)
+  data, pos = parse(tokens)
   if pos < tokens["num"] + 1 then
     error("parser finished before parsing all tokens")
   end
@@ -816,10 +816,10 @@ function bf_load(data, env)
 
   local str, tokens, data, pos
   str = h:read("*a")
-  tokens = tokenizer(str)
+  tokens = tokenize(str)
   pos = 1
   while pos < tokens["num"] + 1 do
-    data, pos = parser(tokens, pos)
+    data, pos = parse(tokens, pos)
     -- return the last eval
     ret = eval(data, env)
   end

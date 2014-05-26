@@ -1,6 +1,6 @@
 require("utils")
 
-function tokenizer(str)
+function tokenize(str)
   local pos, v, len, i
   local tokens = {}
 

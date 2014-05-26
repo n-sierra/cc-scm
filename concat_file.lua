@@ -1,7 +1,7 @@
 ifiles = {
-  "tokenizer.lua",
-  "parser.lua",
-  "compiler.lua",
+  "tokenize.lua",
+  "parse.lua",
+  "eval.lua",
   "basic_functions.lua",
   "lua_functions.lua",
   "global_env.lua",

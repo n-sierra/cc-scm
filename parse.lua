@@ -1,6 +1,6 @@
 require("utils")
 
-function parser(tokens, start)
+function parse(tokens, start)
   local data, pos
 
   if start == nil then

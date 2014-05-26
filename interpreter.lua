@@ -1,6 +1,6 @@
 require("parser")
 require("tokenizer")
-require("compiler")
+require("eval")
 require("global_env")
 require("utils")
 

@@ -1,13 +1,13 @@
-require("parser")
-require("tokenizer")
-require("compiler")
+require("parse")
+require("tokenize")
+require("eval")
 require("global_env")
 require("utils")
 
 function eval_str(str)
   local tokens, data, env, ans
-  tokens = tokenizer(str)
-  data = parser(tokens)
+  tokens = tokenize(str)
+  data = parse(tokens)
   env = make_global_env()
   ans = eval(data, env)
   return ans
@@ -21,9 +21,9 @@ end
 
 print("starting tests...")
 
---Tokenizer
+--Tokenize
 
-tokens = tokenizer("(+ 1 2) ")
+tokens = tokenize("(+ 1 2) ")
 assert(tokens[0] == nil)
 assert(tokens[1]["type"] == "(")
 assert(tokens[1]["value"] == nil)
@@ -36,22 +36,22 @@ assert(tokens[5]["value"] == nil)
 assert(tokens[6] == nil)
 
 -- \"\\str
-tokens2 = tokenizer("\"\\\"\\\\str\"")
+tokens2 = tokenize("\"\\\"\\\\str\"")
 assert(tokens2[1]["type"] == "string")
 assert(tokens2[1]["value"] == "\"\\str")
 
-tokens3 = tokenizer("'sym")
+tokens3 = tokenize("'sym")
 assert(tokens3[1]["type"] == "'")
 assert(tokens3[2]["type"] == "id")
 assert(tokens3[2]["value"] == "sym")
 
-tokens4 = tokenizer("()")
+tokens4 = tokenize("()")
 assert(tokens4[1]["type"] == "(")
 assert(tokens4[2]["type"] == ")")
 
--- Parser
+-- Parse
 
-data = parser(tokens)
+data = parse(tokens)
 assert(data["type"] == "cons")
 assert(data["left"]["type"] == "id")
 assert(data["left"]["value"] == "+")
@@ -60,11 +60,11 @@ assert(data["right"]["left"]["type"] == "number")
 assert(data["right"]["left"]["value"] == 1)
 assert(data["right"]["right"]["right"]["type"] == "null")
 
-data2 = parser(tokens2)
+data2 = parse(tokens2)
 assert(data2["type"] == "string")
 assert(data2["value"] == "\"\\str")
 
-data3 = parser(tokens3)
+data3 = parse(tokens3)
 assert(data3["left"]["type"] == "id")
 assert(data3["left"]["value"] == "quote")
 assert(data3["right"]["type"] == "cons")
@@ -72,10 +72,10 @@ assert(data3["right"]["left"]["type"] == "id")
 assert(data3["right"]["left"]["value"] == "sym")
 assert(data3["right"]["right"]["type"] == "null")
 
-data4 = parser(tokens4)
+data4 = parse(tokens4)
 assert(data4["type"] == "null")
 
--- Compiler
+-- Eval
 
 env = make_global_env()
 ans = eval(data, env)
