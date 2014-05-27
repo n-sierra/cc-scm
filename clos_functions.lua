@@ -6,7 +6,7 @@ function get_clos_funcs()
     ["instance?"] = cf_instance_q,
     ["class-of"] = cf_class_of,
     ["superclass-of"] = cf_superclass_of,
-    ["define-class"] = cf_define_class,
+    ["make-class"] = cf_make_class,
     ["make-instance"] = cf_make_instance,
     ["register-slot"] = cf_register_slot,
     ["set-slot!"] = cf_set_slot_ex,
@@ -76,26 +76,21 @@ function cf_superclass_of(e, env)
   return rights[1]["super"]
 end
 
--- (define-class name super)
+-- (make-class super)
 -- => {type = "clos-class", super = super}
-function cf_define_class(data, env)
-  if not(is_list(data, 2)) then
+function cf_make_class(data, env)
+  if not(is_list(data, 1)) then
     error("invalid args")
   end
 
-  if data["left"]["type"] ~= "id" then
-    error("invalid first arg")
-  end
-
-  local super = eval(data["right"]["left"], env)
+  local super = eval(data["left"], env)
   if not(super["type"] == "clos-class" or super["type"] == "null") then
     error("invalid second arg")
   end
 
   local class_data = {type = "clos-class", super = super}
-  put_var(env, data["left"]["value"], class_data)
 
-  return data["left"]
+  return class_data
 end
 
 -- (make-instance class)

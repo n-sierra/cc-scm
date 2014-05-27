@@ -432,7 +432,7 @@ eval_assert([[
           ((eq? class (class-of instance)) #t)
           (#t (is-of instance (superclass-of class)))))
 
-  (define-class vector '())
+  (define vector (make-class '()))
   (define (dot a b)
     (if (and (is-of? a vector) (is-of? b vector))
       (+ (* (refer-slot a x) (refer-slot b x))
