@@ -43,9 +43,9 @@ function get_basic_funcs()
     -- procedure
     ["procedure?"] = bf_procedure_q,
     -- eq
-    ["eq?"]   = bf_eq_ex,
-    ["neq?"]  = bf_neq_ex,
-    ["equal?"] = bf_equal_ex,
+    ["eq?"]   = bf_eq_q,
+    ["neq?"]  = bf_neq_q,
+    ["equal?"] = bf_equal_q,
     -- meta
     ["load"]  = bf_load,
     ["error"]  = bf_error,
@@ -748,7 +748,7 @@ end
 -- (eq? '() '()) => #t
 -- (eq? car car) => #t
 -- (let ((x '(a))) (eq? x x)) => #t
-function bf_eq_ex(e, env)
+function bf_eq_q(e, env)
   local ans
 
   local rights = eval_list(e, env)
@@ -769,8 +769,8 @@ function bf_eq_ex(e, env)
 end
 
 -- (neq? 'a 'b) =? #t
-function bf_neq_ex(e, env)
-  local tf = bf_eq_ex(e, env)
+function bf_neq_q(e, env)
+  local tf = bf_eq_q(e, env)
   local ret
 
   if tf["value"] == "t" then
@@ -783,7 +783,7 @@ function bf_neq_ex(e, env)
 end
 
 -- (equal? '(a b c) '(a b c)) => true
-function bf_equal_ex(e, env)
+function bf_equal_q(e, env)
   local ret
   local rights = eval_list(e, env)
 
