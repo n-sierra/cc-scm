@@ -15,9 +15,18 @@
         (first-ret (lua-gettable ret (scm->lua 1))))
     first-ret))
 
+(define (sleep s)
+  (call-cc-api "os" "sleep" s) #t)
+
 (define (display str)
   (call-cc-api "io" "write" (scm->lua str) (scm->lua "\n"))
   #t)
+
+(define (lamp-on)
+  (call-cc-api "redstone" "setOutput" "top" #t))
+
+(define (lamp-off)
+  (call-cc-api "redstone" "setOutput" "top" #f))
 
 (define (turtle func-name . args)
   (apply call-cc-api (cons "turtle" (cons func-name args))))
@@ -117,6 +126,6 @@
 (define (wood-cutter)
   (let ittr ()
     (cond ((tree-grow?) (cut-woods) (store-woods) (get-sapling) (put-sapling) (ittr))
-          (#t (call-cc-api "os" "sleep" 1) (ittr)))))
+          (#t (sleep 1) (ittr)))))
 
 #t

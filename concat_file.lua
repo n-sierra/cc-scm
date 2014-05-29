@@ -3,6 +3,7 @@ ifiles = {
   "parse.lua",
   "eval.lua",
   "basic_functions.lua",
+  "clos_functions.lua",
   "lua_functions.lua",
   "global_env.lua",
   "utils.lua",
