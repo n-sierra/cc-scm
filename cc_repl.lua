@@ -14,8 +14,8 @@ function eval_str(str, env)
   return ans_data
 end
 
-function getdata(indent)
-  local data = ""
+function readline(indent)
+  local line = ""
   local cursor = 1
   local history_index = #history + 1
 
@@ -37,16 +37,16 @@ function getdata(indent)
 
     term.clearLine()
 
-    -- print text with $gap, $cursor and $data
+    -- print text with $gap, $cursor and $line
     term.setCursorPos(1, y)
-    term.write(indent .. data:sub(1+gap, width-indent:len()+gap))
+    term.write(indent .. line:sub(1+gap, width-indent:len()+gap))
 
     -- set cursor
     term.setCursorPos(indent:len()+cursor-gap, y)
 
     local event, param1 = os.pullEvent()
     if event == "char" then
-      data = data:sub(1, cursor-1) .. param1 .. data:sub(cursor)
+      line = line:sub(1, cursor-1) .. param1 .. line:sub(cursor)
       cursor = cursor + 1
     elseif event == "key" and param1 == 29 then
       -- Ctrl
@@ -57,18 +57,18 @@ function getdata(indent)
         break
       elseif (param1 == 14 or (onCtrl and param1 == 35)) and 2 <= cursor then
         -- BS or ^H
-        data = data:sub(1, cursor-2) .. data:sub(cursor)
+        line = line:sub(1, cursor-2) .. line:sub(cursor)
         cursor = cursor - 1
-      elseif (param1 == 211 or (onCtrl and param1 == 32)) and cursor <= data:len() then
+      elseif (param1 == 211 or (onCtrl and param1 == 32)) and cursor <= line:len() then
         -- Del or ^D
-        data = data:sub(1, cursor-1) .. data:sub(cursor+1)
+        line = line:sub(1, cursor-1) .. line:sub(cursor+1)
       elseif onCtrl and param1 == 37 then
         -- ^K
-        data = data:sub(1, cursor-1)
+        line = line:sub(1, cursor-1)
       elseif (param1 == 203 or (onCtrl and param1 == 48)) and 2 <= cursor then
         -- Left or ^B
         cursor = cursor - 1
-      elseif (param1 == 205 or (onCtrl and param1 == 33)) and cursor <= data:len() then
+      elseif (param1 == 205 or (onCtrl and param1 == 33)) and cursor <= line:len() then
         -- Right or ^F
         cursor = cursor + 1
       elseif onCtrl and param1 == 30 then
@@ -76,17 +76,17 @@ function getdata(indent)
         cursor = 1
       elseif onCtrl and param1 == 18 then
         -- ^E
-        cursor = data:len()+1
+        cursor = line:len()+1
       elseif (param1 == 200 or (onCtrl and param1 == 25)) and 2 <= history_index then
         -- Up or ^P
         history_index = history_index - 1
-        data = history[history_index]
-        cursor = data:len() + 1
+        line = history[history_index]
+        cursor = line:len() + 1
       elseif (param1 == 208 or (onCtrl and param1 == 49)) and history_index + 1 <= #history then
         -- Down or ^N
         history_index = history_index + 1
-        data = history[history_index]
-        cursor = data:len() + 1
+        line = history[history_index]
+        cursor = line:len() + 1
       end
 
       -- turn of ctrl
@@ -95,8 +95,8 @@ function getdata(indent)
   end
 
   -- update history
-  if data ~= "" then
-    history[#history+1] = data
+  if line ~= "" then
+    history[#history+1] = line
   end
 
   -- go next line
@@ -109,7 +109,7 @@ function getdata(indent)
 
   term.setCursorBlink(false)
 
-  return data
+  return line
 end
 
 io.write("LUASCHEME INTERPRETER\n")
@@ -120,18 +120,18 @@ pcall(eval_str, "(load \"init.scm\")", env)
 history = {}
 
 while true do
-  local str, success, data
+  local line, success, data
 
-  str = ""
-  while str == "" do
-    str = getdata("scm> ")
+  line = ""
+  while line == "" do
+    line = readline("scm> ")
   end
 
-  if str == nil then
+  if line == nil then
     break
   end
 
-  success, data = pcall(eval_str, str, env)
+  success, data = pcall(eval_str, line, env)
 
   if not success then
     io.write("[error] ")
