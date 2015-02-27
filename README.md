@@ -2,7 +2,7 @@
 
 cc-scm is a scheme interpreter, which is implemented by Lua.
 
-You can run it on [ComputerCraft](http://www.computercraft.info/), which is a modification for [Minecraft](https://minecraft.net/).
+You can run it on [ComputerCraft](http://www.computercraft.info/)(a modification for [Minecraft](https://minecraft.net/)).
 
 ## Usage (on \*nix/Windows)
 
@@ -33,13 +33,13 @@ You can run it on [ComputerCraft](http://www.computercraft.info/), which is a mo
 ## Differences from R5RS
 
 - Supports only integer for number
-- Has no 'Char' or 'Vector' type
-- Doesn't have some procedures/features
+- Doesn't support 'Char' or 'Vector' type
+- Doesn't support several procedures/features
   + caar, eqv?, map, string-\*, lazy eval, call/cc, ...
 - Supports CLOS-like procedures
   + make-class, make-instance, refer-slot, ...
 - Supports operations for dealing Lua object
-  + Convert: scm->lua, lua->sc
+  + Convert: scm->lua, lua->scm
   + Call: lua-call
   + Get: lua-get-g
   + Table-operation: lua-gettable
