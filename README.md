@@ -6,6 +6,8 @@ You can run it on [ComputerCraft](http://www.computercraft.info/)(a modification
 
 ## Usage (on \*nix/Windows)
 
+    % git clone https://github.com/n-sierra/cc-scm.git
+    % cd cc-scm
     % lua repl.lua
     LUASCHEME INTERPRETER
     scm> (+ 1 2)
@@ -13,6 +15,8 @@ You can run it on [ComputerCraft](http://www.computercraft.info/)(a modification
     scm> ((lambda (x) (* x x)) 16)
     256
     scm>
+
+Lua 5.1.4 is recommended, while it stil works fine at 5.2.0,
 
 ## Usage (on Minecraft)
 
@@ -43,3 +47,7 @@ You can run it on [ComputerCraft](http://www.computercraft.info/)(a modification
   + Call: lua-call
   + Get: lua-get-g
   + Table-operation: lua-gettable
+
+## License
+
+This software is released under the MIT License, see LICENSE.txt.
