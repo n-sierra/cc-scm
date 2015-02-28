@@ -1,0 +1,2298 @@
+function tokenize(str)
+  local pos, v, len, i
+  local tokens = {}
+
+  pos = 1
+  len = string.len(str)
+  i = 1
+
+  pos = skip_ws(str, pos)
+
+  while pos <= len do
+    pos, v = nextToken(str, pos)
+    if not v then
+      error("cannot recognize token")
+    end
+    pos = skip_ws(str, pos)
+    tokens[i] = v
+    i = i + 1
+  end
+
+  tokens["num"] = i - 1
+
+  return tokens
+end
+
+function skip_ws(str, pos)
+  -- white space
+  pos, _ = skip(str, "^%s*", pos)
+
+  -- comment
+  pos, _ = skip(str, "^;%a*", pos)
+
+  return pos
+end
+
+function nextToken(str, pos)
+  local v
+
+  --
+  v = nil
+  pos, v = skip(str, "^(%()", pos)
+  if v then return pos, {type = "("} end
+  pos, v = skip(str, "^(%))", pos)
+  if v then return pos, {type = ")"} end
+  pos, v = skip(str, "^(#%()", pos)
+  if v then return pos, {type = "#("} end
+  pos, v = skip(str, "^(')", pos)
+  if v then return pos, {type = "'"} end
+  pos, v = skip(str, "^(%.)", pos)
+  if v then return pos, {type = "."} end
+
+  -- identifier
+  pos, v = skip(str, "^([a-zA-Z!%$%%&*/:<=>%?%^_~][a-zA-Z!%$%%&*/:<=>%?%^_~%+%-0-9%.@]*)", pos)
+  if v then return pos, {type = "id", value = v} end
+
+  -- number
+  pos, v = skip(str, "^([%+%-]?%d+)", pos)
+  if v then return pos, {type = "number", value= tonumber(v)} end
+
+  -- identifier 2
+  pos, v = skip(str, "^([%+%-])", pos)
+  if v then return pos, {type = "id", value = v} end
+
+  -- character
+
+  -- string
+  pos, v = skip(str, "^(\")", pos)
+  if v then return skip_string(str, pos) end
+
+  -- boolean
+  pos, v = skip(str, "^(%#t)", pos)
+  if v then return pos, {type = "boolean", value = "t"} end
+  pos, v = skip(str, "^(%#f)", pos)
+  if v then return pos, {type = "boolean", value = "f"} end
+
+  return pos, nil
+end
+
+function skip(str, pattern, pos)
+  local p, q, v
+  p, q, v = string.find(str, pattern, pos)
+  if p then
+    return q+1, v
+  end
+  return pos, nil
+end
+
+function skip_string(str, pos)
+  local ret, v
+
+  ret = ""
+  while true do
+    if str:len() < pos then
+      error("cant find \" after " .. str:sub(pos-1, pos-1))
+    elseif str:sub(pos, pos+1)  == "\\\\" then
+      ret = ret .. "\\"
+      pos = pos + 2
+    elseif str:sub(pos, pos+1)  == "\\n" then
+      ret = ret .. "\n"
+      pos = pos + 2
+    elseif str:sub(pos, pos+1)  == "\\\"" then
+      ret = ret .. "\""
+      pos = pos + 2
+    elseif str:sub(pos, pos)  == "\\" then
+      if pos < str:len() then
+        ret = ret .. str:sub(pos+1, pos+1)
+        pos = pos + 2
+      else
+        error("cant find \" after " .. str:sub(pos,pos))
+      end
+    elseif str:sub(pos, pos)  == "\"" then
+      pos = pos + 1
+      return pos, {type = "string", value = ret}
+    else
+      ret = ret .. str:sub(pos, pos)
+      pos = pos + 1
+    end
+  end
+end
+
+function parse(tokens, start)
+  local data, pos
+
+  if start == nil then
+    pos = 1
+  else
+    pos = start
+  end
+
+  data, pos = parse_data(tokens, pos)
+
+  if tokens["num"]+1 < pos then
+    error("end of tokens is found before finishing parser")
+--  elseif pos < tokens["num"]+1 then
+--    error("parser finished before parsing all tokens")
+  end
+
+  -- return result of parsing and position where parser ended
+  return data, pos
+end
+
+function parse_data(tokens, pos)
+  local data, i
+
+  if tokens[pos] == nil then
+    error("end of tokens is found before finishing parser")
+  elseif tokens[pos]["type"] == "(" then
+    if tokens[pos+1]["type"] == ")" then
+      data = {type = "null"}
+      i = pos + 2
+    else
+      data, i = parse_list(tokens, pos+1)
+    end
+  elseif tokens[pos]["type"] == "'" then
+    local left, right_left, right
+    left = {type = "id", value = "quote"}
+    right_left, i = parse_data(tokens, pos+1)
+    right = {type = "cons", left = right_left, right = {type = "null"}}
+    data =  {type = "cons", left = left, right = right}
+  elseif tokens[pos]["type"] == "id" then
+    data = tokens[pos]
+    i = pos + 1
+  elseif tokens[pos]["type"] == "number" then
+    data = tokens[pos]
+    i = pos + 1
+  elseif tokens[pos]["type"] == "string" then
+    data = tokens[pos]
+    i = pos + 1
+  elseif tokens[pos]["type"] == "boolean" then
+    data = tokens[pos]
+    i = pos + 1
+  else
+    error("unknown type is found at parsing: " .. tokens[pos]["type"])
+  end
+
+  return data, i
+end
+
+function parse_list(tokens, pos)
+  local i, j
+  local left, right
+
+  left, i = parse_data(tokens, pos)
+
+  if tokens[i] == nil then
+    error("cant find ) or .")
+  elseif tokens[i]["type"] == ")" then
+    right = {type = "null"}
+    j = i + 1
+  elseif tokens[i]["type"] == "." then
+    right, j = parse_data(tokens, i+1)
+    if not(tokens[j] ~= nil and tokens[j]["type"] == ")") then
+      error("cant find )")
+    end
+    j = j + 1
+  else
+    right, j = parse_list(tokens, i)
+  end
+
+  return {type = "cons", left = left, right = right}, j
+end
+
+function eval(data, env)
+  local left, ret
+
+  if data["type"] == "cons" then
+    left = eval(data["left"], env)
+    -- tail recursion
+    return apply(left, data["right"], env)
+  elseif data["type"] == "id" then
+    ret =  get_var(env, data["value"])
+    if not ret then
+      error("undefined variable is refered: " .. data["value"])
+    end
+  elseif data["type"] == "number" then
+    ret = data
+  elseif data["type"] == "string" then
+    ret = data
+  elseif data["type"] == "boolean" then
+    ret = data
+  elseif data["type"] == "null" then
+    ret = data
+  elseif data["type"] == "closure" then
+    ret = data
+  elseif data["type"] == "closure_lua" then
+    ret = data
+  elseif data["type"] == "clos-class" then
+    ret = data
+  elseif data["type"] == "clos-instance" then
+    ret = data
+  elseif data["type"] == "lua-object" then
+    ret = data
+  else
+    error("unknown type is found in eval: " .. data["type"])
+  end
+
+  return ret
+end
+
+function apply(proc, e, env)
+  local ret, rets
+  local rights, rests
+  local env0, freevars, restvar, i
+
+  -- (#closure e1 e2 ...)
+  if proc["type"] == "closure" then
+    -- eval elementss of e
+    rights = eval_list(e, env)
+
+    env0 = new_env(proc["env"])
+    freevars = proc["freevars"]
+    restvar = proc["restvar"]
+    if (restvar == nil and freevars["num"] ~= rights["num"])
+      or (restvar ~= nil and freevars["num"] > rights["num"]) then
+      error("wrong number of args "
+        .. "(required " .. tostring(freevars["num"]) .. ", got " .. tostroing(rights["num"]))
+    end
+
+    -- put freevars into env0
+    for i, var in ipairs(freevars) do
+      put_var(env0, var, rights[i])
+    end
+
+    -- put restvar into env0
+    if restvar ~= nil then
+      i = rights["num"]
+      rests = {type = "null"}
+      while freevars["num"] < i do
+        rests = {type = "cons", left = rights[i], right = rests}
+        i = i - 1
+      end
+      put_var(env0, restvar, rests)
+    end
+
+    local rest = proc["e"]
+    while rest["type"] == "cons" do
+      if rest["right"]["type"] == "null" then
+        -- tail recursion
+        return eval(rest["left"], env0)
+      end
+      eval(rest["left"], env0)
+      rest = rest["right"]
+    end
+
+    -- null
+    return {type = "id", value = "<undefined>"}
+
+  -- lua function
+  elseif proc["type"] == "closure_lua" then
+    func = proc["func"]
+    return func(e, env)
+  else
+    error("Non-proc is not apply-able")
+  end
+end
+
+function eval_list(e, env)
+  local i = 1
+  local rights = {}
+
+  while e["type"] == "cons" do
+    rights[i] = eval(e["left"], env)
+    e = e["right"]
+    i = i + 1
+  end
+
+  if e["type"] ~= "null" then
+    error("arg should be a list")
+  end
+
+  rights["num"] = i - 1
+
+  return rights
+end
+
+function new_env(below)
+  return {below = below, vs = {}}
+end
+
+function get_var(env, name)
+  while(env ~= nil) do
+    if env["vs"][name] ~= nil then
+      return env["vs"][name]
+    end
+    env = env["below"]
+  end
+
+  return nil
+end
+
+function put_var(env, name, data)
+  env["vs"][name] = data
+end
+
+function update_var(env, name, data)
+  while(env ~= nil) do
+    if env["vs"][name] ~= nil then
+      env["vs"][name] = data
+      return name
+    end
+    env = env["below"]
+  end
+
+  return nil
+end
+
+function get_global_env(env)
+  while(env["below"] ~= nil) do
+    env = env["below"]
+  end
+
+  return env
+end
+
+-- utility functions
+
+function make_cons(left, right)
+  return {type = "cons", left = left, right = right}
+end
+
+-- (a b c), nil => true
+-- a, nil => false
+-- (a b c), 3 => true
+-- (a b c), 2 => false
+-- a, 3 => false
+-- (a b c), function(x) return x > 2 end => true
+function is_list(data, n)
+  local i = 0
+
+  while data["type"] == "cons" do
+    i = i + 1
+    data = data["right"]
+  end
+
+  if type(n) == "nil" then
+    return data["type"] == "null"
+  elseif type(n) == "number" then
+    return n == i and data["type"] == "null"
+  elseif type(n) == "function" then
+    return n(i) and data["type"] == "null"
+  else
+    error("2nd arg should be number or function")
+  end
+
+end
+
+function fold_ary(rights, func, init)
+  local ans
+
+  ans = init
+  for i, x in ipairs(rights) do
+    ans = func(ans, x)
+  end
+
+  return ans
+end
+
+function fold_ary_r(rights, func, init)
+  local ans
+  local len
+
+  ans = init
+  len = #rights
+  for i, x in ipairs(rights) do
+    i = len - i + 1
+    x = rights[i]
+    ans = func(ans, x)
+  end
+
+  return ans
+end
+
+function get_basic_funcs()
+  local basic_funcs = {
+    -- number
+    ["number?"] = bf_number_q,
+    ["+"]     = bf_plus,
+    ["-"]     = bf_minus,
+    ["*"]     = bf_times,
+    ["/"]     = bf_div,
+    ["="]     = bf_eq,
+    ["<"]     = bf_lt,
+    ["<="]    = bf_le,
+    [">"]     = bf_gt,
+    [">="]    = bf_ge,
+    -- list
+    ["null?"] = bf_null_q,
+    ["pair?"] = bf_pair_q,
+    ["list?"] = bf_list_q,
+    ["symbol?"] = bf_symbol_q,
+    ["car"]   = bf_car,
+    ["cdr"]   = bf_cdr,
+    ["cons"]  = bf_cons,
+    ["list"]  = bf_list,
+    ["length"] = bf_length,
+    ["memq"]  = bf_memq,
+    ["last"]  = bf_last,
+    ["append"] = bf_append,
+    ["set-car!"] = bf_set_car_ex,
+    ["set-cdr!"] = bf_set_cdr_ex,
+    -- boolean
+    ["boolean?"] = bf_boolean_q,
+    ["not"]   = bf_not,
+    -- string
+    ["string?"] = bf_string_q,
+    ["string-append"] = bf_string_append,
+    ["string->symbol"] = bf_string_to_symbol,
+    ["symbol->string"] = bf_symbol_to_string,
+    ["string->number"] = bf_string_to_number,
+    ["number->string"] = bf_number_to_string,
+    -- procedure
+    ["procedure?"] = bf_procedure_q,
+    -- eq
+    ["eq?"]   = bf_eq_q,
+    ["neq?"]  = bf_neq_q,
+    ["equal?"] = bf_equal_q,
+    -- meta
+    ["load"]  = bf_load,
+    ["error"]  = bf_error,
+  }
+
+  return basic_funcs
+end
+
+-- (number? n)
+function bf_number_q(e, env)
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "number" then
+    return {type = "boolean", value = "t"}
+  else
+    return {type = "boolean", value = "f"}
+  end
+end
+
+-- (+ a) => a
+-- (+ a b c) => a + b + c
+function bf_plus(e, env)
+  local rights, ans
+
+  rights = eval_list(e, env)
+
+  ans = fold_ary(rights,
+    function(a, x)
+      if x["type"] ~= "number" then
+        error("args should be number")
+      end
+      return a + x["value"]
+    end, 0)
+
+  return {type = "number", value = ans}
+end
+
+-- (- a) => -a
+-- (- a b c) => a - b - c
+function bf_minus(e, env)
+  local rights, ans
+
+  rights = eval_list(e, env)
+
+  if rights["num"] < 1 then
+    error("invalid args")
+  elseif rights["num"] == 1 then
+    ans = - rights[1]["value"]
+  else
+    ans = fold_ary(rights,
+      function(a, x)
+        if x["type"] ~= "number" then
+          error("args should be number")
+        end
+        if a == nil then
+          return x["value"]
+        else
+          return a-x["value"]
+        end
+      end, nil)
+  end
+
+  return {type = "number", value = ans}
+end
+
+-- (* a) => a
+-- (* a b c) => a * b * c
+function bf_times(e, env)
+  local rights, ans
+
+  rights = eval_list(e, env)
+
+  ans = fold_ary(rights,
+    function(a, x)
+      if x["type"] ~= "number" then
+        error("args should be number")
+      end
+      return a * x["value"]
+    end, 1)
+
+  return {type = "number", value = ans}
+end
+
+-- (/ a) => 1 / a
+-- (/ a b c) => a / b / c
+function bf_div(e, env)
+  local rights, ans
+
+  rights = eval_list(e, env)
+
+  if rights["num"] < 1 then
+    error("invalid args")
+  elseif rights["num"] == 1 then
+    if rights[1]["value"] == 0 then
+      error("0 divides something")
+    end
+    ans = 1 / rights[1]["value"]
+    if ans < 0 then
+      ans = math.ceil(ans)
+    else
+      ans = math.floor(ans)
+    end
+  else
+    ans = fold_ary(rights,
+      function(a, x)
+        if x["type"] ~= "number" then
+          error("args should be number")
+        elseif a == nil then
+          return x["value"]
+        elseif x["value"] == 0 then
+          error("0 divides something")
+        else
+          local ans = a / x["value"]
+          if ans < 0 then
+            ans = math.ceil(ans)
+          else
+            ans = math.floor(ans)
+          end
+          return ans
+        end
+      end, nil)
+  end
+
+  return {type = "number", value = ans}
+end
+
+-- sub function for create function(e, env)
+function create_number_relation_function(r)
+  return function(e, env)
+    local rights, ans
+
+    rights = eval_list(e, env)
+
+    if rights["num"] < 2 then
+      error("invalid args")
+    end
+
+    ans = fold_ary(rights,
+      function(a, x)
+        if x["type"] ~= "number" then
+          error("args should be number")
+        end
+        if a[2] == nil then
+          return {true, x["value"]}
+        elseif a[1] == false then
+          return {false, x["value"]}
+        else
+          return {r(a[2],x["value"]), x["value"]}
+        end
+      end, {true, nil})
+
+    if ans[1] then
+      ans = "t"
+    else
+      ans = "f"
+    end
+
+    return {type = "boolean", value = ans}
+  end
+end
+
+-- (= a b) => a = b
+-- (= a b c) => a = b and b = c
+function bf_eq(e, env)
+  local f = create_number_relation_function(function (x, y) return x == y end)
+  return f(e, env)
+end
+
+-- (< a b) => a < b
+-- (< a b c) => a < b and b < c
+function bf_lt(e, env)
+  local f = create_number_relation_function(function (x, y) return x < y end)
+  return f(e, env)
+end
+
+-- (<= a b) => a <= b
+-- (<= a b c) => a <= b and b <= c
+function bf_le(e, env)
+  local f = create_number_relation_function(function (x, y) return x <= y end)
+  return f(e, env)
+end
+
+-- (> a b) => a > b
+-- (> a b c) => a > b and b > c
+function bf_gt(e, env)
+  local f = create_number_relation_function(function (x, y) return x > y end)
+  return f(e, env)
+end
+
+-- (>= a b) => a >= b
+-- (>= a b c) => a >= b and b >= c
+function bf_ge(e, env)
+  local f = create_number_relation_function(function (x, y) return x >= y end)
+  return f(e, env)
+end
+
+-- (null? '()) => #t
+function bf_null_q(e, env)
+  local ans
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "null" then
+    ans = "t"
+  else
+    ans = "f"
+  end
+
+  return {type = "boolean", value = ans}
+end
+
+-- (pair? '()) => #f
+-- (pair? '(1 . 2)) => #t
+function bf_pair_q(e, env)
+  local ans
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "cons" then
+    ans = "t"
+  else
+    ans = "f"
+  end
+
+  return {type = "boolean", value = ans}
+end
+
+-- (list? '()) => #t
+-- (list? '(1 . 2)) => #f
+-- (list? '(1 2)) => #t
+function bf_list_q(e, env)
+  local ans
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if is_list(rights[1], nil) then
+    ans = "t"
+  else
+    ans = "f"
+  end
+
+  return {type = "boolean", value = ans}
+end
+
+-- (symbol? '()) => #f
+-- (symbol? 'a) => #t
+-- (symbol? "foo") => #f
+function bf_symbol_q(e, env)
+  local ans
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "id" then
+    ans = "t"
+  else
+    ans = "f"
+  end
+
+  return {type = "boolean", value = ans}
+end
+
+-- (car '(a b)) => a
+function bf_car(e, env)
+  local rights = eval_list(e, env)
+
+  if not (rights["num"] == 1 and rights[1]["type"] == "cons") then
+    error("invalid args")
+  end
+
+  return rights[1]["left"]
+end
+
+-- (cdr '(a b)) => (b)
+function bf_cdr(e, env)
+  local rights = eval_list(e, env)
+
+  if not (rights["num"] == 1 and rights[1]["type"] == "cons") then
+    error("invalid args")
+  end
+
+  return rights[1]["right"]
+end
+
+-- (cons a b) => (a b)
+function bf_cons(e, env)
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 2 then
+    error("invalid args")
+  end
+
+  return make_cons(rights[1], rights[2])
+end
+
+-- (list) => ()
+-- (list a b c) => (a b c)
+function bf_list(e, env)
+  local ans
+  local rights = eval_list(e, env)
+
+  ans = fold_ary_r(rights,
+    function(a, x)
+      return make_cons(x, a)
+    end, {type = "null"})
+
+  return ans
+end
+
+-- (length '()) => 0
+-- (length '(1 2 3)) => 3
+function bf_length(e, env)
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  local i = 0
+  local data = rights[1]
+
+  while data["type"] == "cons" do
+    i = i + 1
+    data = data["right"]
+  end
+
+  if data["type"] ~= "null" then
+    error("invalid args")
+  end
+
+  return {type = "number", value = i}
+end
+
+-- (memq 'a '(a b c)) => (a b c)
+-- (memq 'b '(a b c)) => (b c)
+-- (memq 'd '(a b c)) => #f
+function bf_memq(e, env)
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 2 and is_list(rights[2], nil)) then
+    error("invalid args")
+  end
+
+  local data = rights[2]
+
+  while data["type"] == "cons" do
+    local t = is_eq(rights[1], data["left"])
+    if t then
+      return data
+    end
+    data = data["right"]
+  end
+
+  return {type = "boolean", value = "f"}
+end
+
+-- (last '(1 2)) => 2
+function bf_last(e, env)
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 1 and is_list(rights[1], function(x) return x>=1 end)) then
+    error("invalid args")
+  end
+
+  local data = rights[1]
+
+  while data["right"]["type"] ~= "null" do
+    data = data["right"]
+  end
+
+  return data["left"]
+end
+
+-- sub function for append
+function list_to_ary(e)
+  local i = 1
+  local ary = {}
+
+  while e["type"] == "cons" do
+    ary[i] = e["left"]
+    e = e["right"]
+    i = i + 1
+  end
+
+  if e["type"] ~= "null" then
+    error("arg should be a list")
+  end
+
+  ary["num"] = i - 1
+
+  return ary
+end
+
+-- (append '(1 2) '(3 4 5)) => (1 2 3 4 5)
+function bf_append(e, env)
+  local ret
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 2
+    and is_list(rights[1], nil)
+    and is_list(rights[2], nil)) then
+    error("invalid args")
+  end
+
+  local ary = list_to_ary(rights[1])
+
+  ans = fold_ary_r(ary,
+    function(a, x)
+      return make_cons(x, a)
+    end, rights[2])
+
+  return ans
+end
+
+-- (set-car a 1)
+function bf_set_car_ex(data, env)
+  local l
+
+  if not is_list(data, 2) then
+    error("invalid args")
+  end
+
+  if data["left"]["type"] ~= "id" then
+    error("first arg should be id")
+  end
+
+  -- get addr of var
+  l = get_var(env, data["left"]["value"])
+  if l == nil then
+    error("this variable is undefined: " .. data["left"]["value"])
+  end
+
+  if l["type"] ~= "cons" then
+    error("value of 1st arg should be pair")
+  end
+
+  -- update env
+  l["left"] = data["right"]["left"]
+
+  return {type = "id", value = "<undefined>"}
+end
+
+-- (set-cdr a 1)
+function bf_set_cdr_ex(data, env)
+  local l
+
+  if not is_list(data, 2) then
+    error("invalid args")
+  end
+
+  if data["left"]["type"] ~= "id" then
+    error("first arg should be id")
+  end
+
+  -- get addr of var
+  l = get_var(env, data["left"]["value"])
+  if l == nil then
+    error("this variable is undefined: " .. data["left"]["value"])
+  end
+
+  if l["type"] ~= "cons" then
+    error("value of 1st arg should be pair")
+  end
+
+  -- update env
+  l["right"] = data["right"]["left"]
+
+  return {type = "id", value = "<undefined>"}
+end
+
+-- (boolean? #t)
+function bf_boolean_q(e, env)
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "boolean" then
+    return {type = "boolean", value = "t"}
+  else
+    return {type = "boolean", value = "f"}
+  end
+end
+
+-- (not #t)
+function bf_not(e, env)
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 1) then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "boolean" and rights[1]["value"] == "f" then
+    return {type = "boolean", value = "t"}
+  else
+    return {type = "boolean", value = "f"}
+  end
+end
+
+-- (string? "test")
+function bf_string_q(e, env)
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "string" then
+    return {type = "boolean", value = "t"}
+  else
+    return {type = "boolean", value = "f"}
+  end
+end
+
+-- (string-append "foo" "bar")
+function bf_string_append(e, env)
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 2
+    and rights[1]["type"] == "string" and rights[2]["type"] == "string") then
+    error("invalid args")
+  end
+
+  return {type = "string", value = rights[1]["value"] .. rights[2]["value"]}
+end
+
+-- sub function for string-symbol convertion
+function is_valid_symbol(str)
+  local p, q, v
+  p, q, v = string.find(str, "^([a-zA-Z!%$%%&*/:<=>%?%^_~%+%-][a-zA-Z!%$%%&*/:<=>%?%^_~%+%-0-9%.@]*)", 1)
+  if q == string.len(str) then
+    return true
+  end
+  return false
+end
+
+function symbol_encode(str)
+  -- WIP
+  return str
+end
+
+function symbol_decode(str_en)
+  -- WIP
+  return str_en
+end
+
+-- (string->symbol "foo")
+function bf_string_to_symbol(e, env)
+  local ans
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 1 and rights[1]["type"] == "string") then
+    error("invalid args")
+  end
+
+  if not is_valid_symbol(rights[1]["value"]) then
+    ans = "$" .. symbol_encode(rights[1]["value"]) .. "$"
+  else
+    ans = rights[1]["value"]
+  end
+
+  return {type = "id", value = ans}
+end
+
+-- (symbol->string 'foo)
+function bf_symbol_to_string(e, env)
+  local ans
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 1 and rights[1]["type"] == "id") then
+    error("invalid args")
+  end
+
+  if string.sub(rights[1]["value"], 1, 1) == "$" then
+    ans = string.sub(rights[1]["value"], 2, -2)
+  else
+    ans = rights[1]["value"]
+  end
+  ans = symbol_decode(ans)
+
+  return {type = "string", value = ans}
+end
+
+-- (string->number "100")
+function bf_string_to_number(e, env)
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 1 and rights[1]["type"] == "string") then
+    error("invalid args")
+  end
+
+  local tokens = tokenize(rights[1]["value"])
+  local data, pos
+  data, pos = parse(tokens)
+  if pos < tokens["num"] + 1 then
+    error("parser finished before parsing all tokens")
+  end
+
+  if data["type"] == "number" then
+    return data
+  else
+    return {type = "boolean", value = "f"}
+  end
+end
+
+-- (number->string 100)
+function bf_number_to_string(e, env)
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 1 and rights[1]["type"] == "number") then
+    error("invalid args")
+  end
+
+  return {type = "string", value = tostring(rights[1]["value"])}
+end
+
+-- (procedure? car)
+function bf_procedure_q(e, env)
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "closure" or rights[1]["type"] == "closure_lua" then
+    return {type = "boolean", value = "t"}
+  else
+    return {type = "boolean", value = "f"}
+  end
+end
+
+-- sub function for eq? and equal?
+function is_eq(e1, e2)
+  local ans
+
+  if e1["type"] ~= e2["type"] then
+    ans = false
+  elseif e1["type"] == "null" then
+    ans = true
+  elseif e1["type"] == "id"
+    or e1["type"] == "boolean"
+    or e1["type"] == "string"
+    or e1["type"] == "number" then
+    ans = (e1["value"] == e2["value"])
+  elseif e1["type"] == "cons" then
+    -- same pointer?
+    ans = (e1 == e2)
+  elseif e1["type"] == "closure" then
+    -- same pointer?
+    ans = (e1 == e2)
+  elseif e1["type"] == "closure_lua" then
+    -- same pointer?
+    ans = (e1 == e2)
+  elseif e1["type"] == "clos-class" then
+    -- same pointer?
+    ans = (e1 == e2)
+  elseif e1["type"] == "clos-instance" then
+    -- same pointer?
+    ans = (e1 == e2)
+  else
+    -- unknown type
+    ans = false
+  end
+
+  return ans
+end
+
+function is_equal(e1, e2)
+  local ans
+
+  if e1["type"] == "cons" and e2["type"] == "cons" then
+    ans = is_equal(e1["left"], e2["left"])
+    if ans then
+      ans = is_equal(e1["right"], e2["right"])
+    end
+  else
+    ans = is_eq(e1, e2)
+  end
+
+  return ans
+end
+
+-- (eq? 'a 'a) => #t
+-- (eq? '() '()) => #t
+-- (eq? car car) => #t
+-- (let ((x '(a))) (eq? x x)) => #t
+function bf_eq_q(e, env)
+  local ans
+
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 2 then
+    error("invalid args")
+  end
+
+  ans = is_eq(rights[1], rights[2])
+
+  if ans then
+    ret = {type = "boolean", value = "t"}
+  else
+    ret = {type = "boolean", value = "f"}
+  end
+
+  return ret
+end
+
+-- (neq? 'a 'b) =? #t
+function bf_neq_q(e, env)
+  local tf = bf_eq_q(e, env)
+  local ret
+
+  if tf["value"] == "t" then
+    ret = {type = "boolean", value = "f"}
+  else
+    ret = {type = "boolean", value = "t"}
+  end
+
+  return ret
+end
+
+-- (equal? '(a b c) '(a b c)) => true
+function bf_equal_q(e, env)
+  local ret
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 2 then
+    error("invalid args")
+  end
+
+  ans = is_equal(rights[1], rights[2])
+
+  if ans then
+    ret = {type = "boolean", value = "t"}
+  else
+    ret = {type = "boolean", value = "f"}
+  end
+
+  return ret
+end
+
+-- (load filename)
+function bf_load(data, env)
+  local ret
+  local fn, h
+
+  if not is_list(data, 1) then
+    error("invalid args")
+  end
+
+  fn = eval(data["left"], env)
+  if fn["type"] ~= "string" then
+    error("1st arg should be string")
+  end
+
+  h = io.open(fn["value"], "r")
+  if h == nil then
+    error("file does not exist: " .. fn["value"])
+  end
+
+  local str, tokens, data, pos
+  str = h:read("*a")
+  tokens = tokenize(str)
+  pos = 1
+  while pos < tokens["num"] + 1 do
+    data, pos = parse(tokens, pos)
+    -- return the last eval
+    ret = eval(data, env)
+  end
+
+  h:close()
+
+  return ret
+end
+
+-- (error "what happened")
+function bf_error(data, env)
+  if not is_list(data, 1) then
+    error("invalid args")
+  end
+
+  local reason = eval(data["left"], env)
+  if reason["type"] ~= "string" then
+    error("1st arg should be string")
+  end
+
+  error(reason["value"])
+end
+
+function get_clos_funcs()
+  local clos_funcs = {
+    ["class?"] = cf_class_q,
+    ["instance?"] = cf_instance_q,
+    ["class-of"] = cf_class_of,
+    ["superclass-of"] = cf_superclass_of,
+    ["make-class"] = cf_make_class,
+    ["make-instance"] = cf_make_instance,
+    ["register-slot"] = cf_register_slot,
+    ["set-slot!"] = cf_set_slot_ex,
+    ["refer-slot"] = cf_refer_slot,
+  }
+
+  return clos_funcs
+end
+
+-- (class? obj)
+function cf_class_q(e, env)
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "clos-class" then
+    return {type = "boolean", value = "t"}
+  else
+    return {type = "boolean", value = "f"}
+  end
+end
+
+-- (instance? obj)
+function cf_instance_q(e, env)
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "clos-instance" then
+    return {type = "boolean", value = "t"}
+  else
+    return {type = "boolean", value = "f"}
+  end
+end
+
+-- (class-of obj)
+function cf_class_of(e, env)
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] ~= "clos-instance" then
+    error("invalid args")
+  end
+
+  return rights[1]["class"]
+end
+
+-- (superclass-of class)
+function cf_superclass_of(e, env)
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] ~= "clos-class" then
+    error("invalid args")
+  end
+
+  return rights[1]["super"]
+end
+
+-- (make-class super)
+-- => {type = "clos-class", super = super}
+function cf_make_class(data, env)
+  if not(is_list(data, 1)) then
+    error("invalid args")
+  end
+
+  local super = eval(data["left"], env)
+  if not(super["type"] == "clos-class" or super["type"] == "null") then
+    error("invalid second arg")
+  end
+
+  local class_data = {type = "clos-class", super = super}
+
+  return class_data
+end
+
+-- (make-instance class)
+-- => {type = "clos-instance", class = class, slots = {}}
+function cf_make_instance(data, env)
+  if not(is_list(data, 1)) then
+    error("invalid args")
+  end
+
+  local class = eval(data["left"], env)
+  if class["type"] ~= "clos-class" then
+    error("invalid first arg")
+  end
+
+  local slots = new_env(nil)
+
+  return {type = "clos-instance", class = class, slots = slots}
+end
+
+-- (refer-slot m slot)
+function cf_refer_slot(data, env)
+  if not(is_list(data, 2)) then
+    error("invalid args")
+  end
+
+  local instance = eval(data["left"], env)
+  if instance["type"] ~= "clos-instance" then
+    error("invalid first arg")
+  end
+
+  local slot = data["right"]["left"]
+  if slot["type"] ~= "id" then
+    error("invalid args")
+  end
+
+  local ret =  get_var(instance["slots"], slot["value"])
+  if not ret then
+    error("undefined variable is refered: " .. slot["value"])
+  end
+
+  return ret
+end
+
+-- (register-slot m slot x)
+function cf_register_slot(data, env)
+  if not(is_list(data, 3)) then
+    error("invalid args")
+  end
+
+  local instance = eval(data["left"], env)
+  if instance["type"] ~= "clos-instance" then
+    error("invalid first arg")
+  end
+
+  local slot = data["right"]["left"]
+  if slot["type"] ~= "id" then
+    error("invalid args")
+  end
+
+  local ret = eval(data["right"]["right"]["left"], env)
+  put_var(instance["slots"], slot["value"], ret)
+
+  return instance
+end
+
+-- (set-slot! m slot x)
+function cf_set_slot_ex(data, env)
+  if not(is_list(data, 3)) then
+    error("invalid args")
+  end
+
+  local instance = eval(data["left"], env)
+  if instance ~= "clos-instance" then
+    error("invalid first arg")
+  end
+
+  local slot = data["right"]["left"]
+  if slot["type"] ~= "id" then
+    error("invalid args")
+  end
+
+  local ret = eval(data["right"]["right"]["left"], env)
+  if update_var(instance["slots"], slot["value"], ret) == nil then
+    error("this variable is undefined: " .. slot["value"])
+  end
+
+  return ret
+end
+
+function get_lua_funcs()
+  local lua_funcs = {
+    ["lua-get-g"] = lf_lua_get_g,
+    ["lua-object?"] = lf_lua_object_q,
+    ["lua-call"] = lf_lua_call,
+    ["lua-gettable"] = lf_lua_gettable,
+    ["scm->lua"] = lf_scm_to_lua,
+    ["lua->scm"] = lf_lua_to_scm,
+  }
+
+  return lua_funcs
+end
+
+-- (lua-get-g)
+function lf_lua_get_g(e, env)
+  return {type = "lua-object", value = _G}
+end
+
+
+-- (lua-object? obj)
+function lf_lua_object_q(e, env)
+  local rights = eval_list(e, env)
+
+  if rights["num"] ~= 1 then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "lua-object" then
+    return {type = "boolean", value = "t"}
+  else
+    return {type = "boolean", value = "f"}
+  end
+end
+
+-- (lua-call type tf) => ({type="boolean", value="t"} .())
+function lf_lua_call(e, env)
+  local rights, ans, i
+
+  rights = eval_list(e, env)
+
+  if rights["num"] < 1 then
+    error("invalid args")
+  end
+
+  if not (rights[1]["type"] == "lua-object" and type(rights[1]["value"]) == "function") then
+    error("first arg should be lua function")
+  end
+
+  i = 2
+  args = {}
+  while i <= rights["num"] do
+    if rights[i]["type"] ~= "lua-object" then
+      error("args should be lua-object")
+    end
+    args[i-1] = rights[i]["value"]
+    i = i + 1
+  end
+
+  ret = {pcall(rights[1]["value"], unpack(args))}
+
+  if not ret[1] then
+    error("exeption arised: " .. ret[2])
+  end
+
+  return {type = "lua-object", value = {unpack(ret, 2)}}
+end
+
+-- (lua-gettable table key) => value
+function lf_lua_gettable(e, env)
+  local rights, ans, i, key, ret
+
+  rights = eval_list(e, env)
+
+  if rights["num"] ~= 2 then
+    error("invalid args")
+  end
+
+  if not (rights[1]["type"] == "lua-object" and type(rights[1]["value"]) == "table") then
+    error("first arg should be lua table")
+  end
+
+  if not (rights[2]["type"] == "lua-object") then
+    error("second arg should be lua table")
+  end
+
+  key = rights[2]["value"]
+  ret = rights[1]["value"][key]
+
+  return {type = "lua-object", value = ret}
+end
+
+-- (scm->lua 100)
+function lf_scm_to_lua(e, env)
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 1) then
+    error("invalid args")
+  end
+
+  if rights[1]["type"] == "number" or rights[1]["type"] == "string" then
+    return {type = "lua-object", value = rights[1]["value"]}
+  elseif rights[1]["type"] == "boolean" then
+    if rights[1]["value"] == "t" then
+      return {type = "lua-object", value = true}
+    else
+      return {type = "lua-object", value = false}
+    end
+  elseif rights[1]["type"] == "null" then
+    return {type = "lua-object", value = nil}
+  else
+    error("cant convert this type into lua-object: " .. rights[1]["type"])
+  end
+end
+
+-- (lua->scm lua100)
+function lf_lua_to_scm(e, env)
+  local rights = eval_list(e, env)
+
+  if not(rights["num"] == 1 and rights[1]["type"] == "lua-object") then
+    error("invalid args")
+  end
+
+  local obj = rights[1]["value"]
+
+  if type(obj) == "nil" then
+    return {type = "null"}
+  elseif type(obj) == "number" then
+    if obj < 0 then
+      return {type = "number", value = math.ceil(obj)}
+    else
+      return {type = "number", value = math.floor(obj)}
+    end
+  elseif type(obj) == "string" then
+    return {type = "string", value = obj}
+  elseif type(obj) == "boolean" then
+    if obj then
+      return {type = "boolean", value = "t"}
+    else
+      return {type = "boolean", value = "f"}
+    end
+  else
+    error("cant convert this type into scheme object: " .. type(obj))
+  end
+end
+
+function make_global_env()
+  local env = new_env(nil)
+  local funcs
+
+  funcs = {
+    quote     = gf_quote,
+    apply     = gf_apply,
+    ["if"]    = gf_if,
+    cond      = gf_cond,
+    ["set!"]  = gf_set_ex,
+    let       = gf_let,
+    ["let*"]  = gf_let_as,
+    letrec    = gf_letrec,
+    ["do"]    = gf_do,
+    begin     = gf_begin,
+    lambda    = gf_lambda,
+    define    = gf_define,
+    ["and"]   = gf_and,
+    ["or"]    = gf_or,
+  }
+
+  for name, func in pairs(funcs) do
+    put_var(env, name, {type = "closure_lua", func = func})
+  end
+
+  for name, func in pairs(get_basic_funcs()) do
+    put_var(env, name, {type = "closure_lua", func = func})
+  end
+
+  for name, func in pairs(get_clos_funcs()) do
+    put_var(env, name, {type = "closure_lua", func = func})
+  end
+
+  for name, func in pairs(get_lua_funcs()) do
+    put_var(env, name, {type = "closure_lua", func = func})
+  end
+
+  return env
+end
+
+-- (quote x) => x
+function gf_quote(data, env)
+  if not is_list(data, 1) then
+    error("wrong number of args (required 1)")
+  end
+
+  return data["left"]
+end
+
+-- (apply cons '(a b)) => (cons a b) => (a . c)
+function gf_apply(data, env)
+  local args0, rest
+  local args, i
+  local list, proc, rights
+
+  if not is_list(data, 2) then
+    error("wrong number of args (required 2)")
+  end
+
+  proc = eval(data["left"], env)
+  list = eval(data["right"]["left"], env)
+
+  if not is_list(data, nil) then
+    error("second arg should be list")
+  end
+
+  rest = list
+  args0 = {}
+  i = 1
+  while rest["type"] == "cons" do
+    args0[i] = rest["left"]
+    rest = rest["right"]
+    i = i + 1
+  end
+  n = i - 1
+
+  args = {type = "null"}
+  i = n
+  while 1 <= i do
+    args = make_cons(make_cons({type = "id", value = "quote"}, make_cons(args0[i], {type = "null"})), args)
+    i = i - 1
+  end
+
+  return apply(proc, args, env)
+end
+
+
+-- (if e t f)
+-- (if e t)
+function gf_if(data, env)
+  local tf
+
+  if not is_list(data, function(x) return x==2 or x==3 end) then
+    error("wrong number of args (required 2 or 3)")
+  end
+
+  tf = eval(data["left"], env)
+  if tf["type"] == "boolean" and tf["value"] == "f" then
+    -- false
+    if is_list(data, 3) then
+      return eval(data["right"]["right"]["left"], env)
+    else
+      -- undefined
+      return {type = "id", value = "<undefined>"}
+    end
+  else
+    -- true
+    return eval(data["right"]["left"], env)
+  end
+end
+
+-- (cond)
+-- => <undefined>
+-- (cond (test e1 e2) ...)
+-- => (cond ...) if !test
+--    (begin e1 e2) if test
+-- (cond (test => e) ...)
+-- => (cond ...) if !test
+--    (e test) if test
+-- (cond (else e1 e2) ...)
+--    (begin e1 e2)
+function gf_cond(data, env)
+  local clause, tf
+
+  if is_list(data, 0) then
+    -- undefined
+    return {type = "id", value = "<undefined>"}
+  elseif not is_list(data, function(x) return x>=1 end) then
+    error("wrong number of args (required >=1)")
+  end
+
+  clause = data["left"]
+  if not is_list(clause, function(x) return x>=1 end) then
+    error("wrong number of args in clause (required >=1)")
+  end
+
+  if clause["left"]["type"] == "id" and clause["left"]["value"] == "else" then
+    -- (else ...)
+    return gf_begin(clause["right"], env)
+  end
+
+  tf = eval(clause["left"], env)
+
+  if tf["type"] == "boolean" and tf["value"] == "f" then
+    -- false
+    return gf_cond(data["right"], env)
+  end
+
+  -- true
+  if is_list(clause, 3) and clause["right"]["left"]["type"] == "id" and clause["right"]["left"]["value"] == "=>" then
+    -- (cond (test => e) ...) => (e test)
+    local closure
+    closure = eval(clause["right"]["right"]["left"], env)
+    return apply(closure, make_cons(tf, {type = "null"}), env)
+  else
+    -- (cond (test e1 e2) ...) => (begin e1 e2)
+    return gf_begin(clause["right"], env)
+  end
+end
+
+-- (set! x v)
+function gf_set_ex(data, env)
+  local ret
+
+  if not is_list(data, 2) then
+    error("wrong number of args (required 2)")
+  end
+
+  if data["left"]["type"] ~= "id" then
+    error("first arg should be id")
+  end
+
+  ret = eval(data["right"]["left"], env)
+  if update_var(env, data["left"]["value"], ret) == nil then
+    error("this variable is undefined: " .. data["left"]["value"])
+  end
+
+  return ret
+end
+
+-- (let ((x a) (y b)) e1 e2)
+-- => ((lambda (x y) e1 e2) a b)
+-- (let tag ((x a) (y b)) e1 e2)
+-- => ((letrec ((tag (lambda (x y) e1 e2))) tag) a b)
+function gf_let(data, env)
+  local tag, rest, e, closure, xs, args
+  local i, n, xs0, args0
+
+  if is_list(data, function(x) return 1<=x end) and is_list(data["left"], nil) then
+    tag = nil
+    rest = data["left"]
+    e = data["right"]
+  elseif is_list(data, function(x) return 2<=x end) and data["left"]["type"] == "id" then
+    tag = data["left"]
+    rest = data["right"]["left"]
+    e = data["right"]["right"]
+  else
+    error("invalid args")
+  end
+
+  xs0 = {}
+  args0 = {}
+  i = 1
+  while rest["type"] == "cons" do
+    local xa
+    xa = rest["left"]
+    if not is_list(xa, 2) then
+      error("invalid args")
+    end
+    xs0[i] = xa["left"]
+    args0[i] = xa["right"]["left"]
+    rest = rest["right"]
+    i = i + 1
+  end
+  n = i - 1
+
+  xs = {type = "null"}
+  args = {type = "null"}
+  i = n
+  while 0 < i do
+    xs = make_cons(xs0[i], xs)
+    args = make_cons(args0[i], args)
+    i = i - 1
+  end
+
+  if tag == nil then
+    closure = gf_lambda(make_cons(xs, e), env)
+    return eval(make_cons(closure, args), env)
+  else
+    local a, letrec
+    closure = make_cons({type = "id", value = "lambda"}, make_cons(xs, e))
+    a = make_cons(make_cons(tag, make_cons(closure, {type = "null"})), {type = "null"})
+    letrec = gf_letrec(make_cons(a, make_cons(tag, {type = "null"})), env)
+    return apply(letrec, args, env)
+  end
+end
+
+-- (let* ((x a) (y b)) e1 e2)
+-- => (#closure>)
+-- freevars: nil    restvar: nil    e: (e1 e2)    env: {x=a,y=b}
+function gf_let_as(data, env)
+  local rest, e, xs, args, env0, closure, freevars
+  local i, n
+
+  if not (is_list(data, function(x) return 1<=x end) and is_list(data["left"], nil)) then
+    error("invalid args")
+  end
+
+  rest = data["left"]
+  e = data["right"]
+  freevars = {num = 0}
+  env0 = new_env(env)
+  closure = {type = "closure"}
+
+  xs = {}
+  args = {}
+  i = 1
+  while rest["type"] == "cons" do
+    local xa
+    xa = rest["left"]
+    xs[i] = xa["left"]["value"]
+    args[i] = xa["right"]["left"]
+    rest = rest["right"]
+    i = i + 1
+  end
+  n = i - 1
+
+  -- update vars
+  for i, x in ipairs(xs) do
+    local a = eval(args[i], env0)
+    put_var(env0, xs[i], a)
+  end
+
+  return apply({type = "closure", freevars = freevars, restvar = nil, e = e, env = env0}, {type = "null"}, env)
+end
+
+-- (letrec ((x a) (y b)) e1 e2)
+-- => (#closure>)
+-- freevars: nil    restvar: nil    e: (e1 e2)    env: {x=a,y=b}
+function gf_letrec(data, env)
+  local rest, e, xs, args, env0, closure, freevars
+  local i, n
+
+  if not (is_list(data, function(x) return 1<=x end) and is_list(data["left"], nil)) then
+    error("invalid args")
+  end
+
+  rest = data["left"]
+  e = data["right"]
+  freevars = {num = 0}
+  env0 = new_env(env)
+  closure = {type = "closure"}
+
+  xs = {}
+  args = {}
+  i = 1
+  while rest["type"] == "cons" do
+    xa = rest["left"]
+    xs[i] = xa["left"]["value"]
+    args[i] = xa["right"]["left"]
+    rest = rest["right"]
+    i = i + 1
+  end
+  n = i - 1
+
+  -- put vars temporarily
+  for i, x in ipairs(xs) do
+    put_var(env0, xs[i], {type = "id", value = "<undefined>"})
+  end
+  -- update vars
+  for i, x in ipairs(xs) do
+    local a = eval(args[i], env0)
+    put_var(env0, xs[i], a)
+  end
+
+  return apply({type = "closure", freevars = freevars, restvar = nil, e = e, env = env0}, {type = "null"}, env)
+end
+
+-- (do ((var1 init1 step1) (var2 init2 step2)) (test e1 e2) c1 c2)
+-- => var1 <- init1, var2 <- init2
+--    while(test == false) {
+--      (begin c1 c2)
+--      var1 <- step1, var2 <- step2
+--    }
+--    (begin e1 e2)
+function gf_do(data, env)
+  local env0, binds, test, e, c
+
+  if not (is_list(data, function(x) return 2<=x end)
+    and is_list(data["left"], nil)
+    and is_list(data["right"]["left"], function(x) return 1<=x end)) then
+    error("invalid args")
+  end
+
+  e = data["right"]["left"]["right"]
+  c = data["right"]["right"]
+
+  env0 = new_env(env)
+
+  binds = data["left"]
+  while binds["type"] == "cons" do
+    local bind, v
+    bind = binds["left"]
+    if not (is_list(bind, 3) and bind["left"]["type"] == "id") then
+      error("invalid args")
+    end
+    v = eval(bind["right"]["left"], env)
+    put_var(env0, bind["left"]["value"], v)
+    binds = binds["right"]
+  end
+
+  test = eval(data["right"]["left"]["left"], env0)
+  while test["type"] == "boolean" and test["value"] == "f" do
+    gf_begin(c, env0)
+    binds = data["left"]
+    while binds["type"] == "cons" do
+      local bind, v
+      bind = binds["left"]
+      v = eval(bind["right"]["right"]["left"], env0)
+      put_var(env0, bind["left"]["value"], v)
+      binds = binds["right"]
+    end
+    test = eval(data["right"]["left"]["left"], env0)
+  end
+
+  return gf_begin(e, env0)
+end
+
+-- (begin e1 e2)
+function gf_begin(data, env)
+  local ret, rets
+
+  if is_list(data, 0) then
+    return {type = "id", value = "<undefined>"}
+  elseif is_list(data, nil) then
+    while data["type"] == "cons" do
+      if data["right"]["type"] == "null" then
+        -- tail recursion
+        return eval(data["left"], env)
+      end
+      eval(data["left"], env)
+      data = data["right"]
+    end
+  end
+
+  -- non-list or unexpected condition
+  error("invalid args")
+end
+
+-- (lambda (x y) e1 e2)
+-- => freevars: x, y    restvar: nil  e: (e1 e2)
+-- (lambda (x y . z) e1 e2)
+-- => freevars: x, y    restvar: z    e: (e1 e2)
+function gf_lambda(data, env)
+  local freevars, restvar, e, env0
+  local rest, i
+
+  if not is_list(data, function(x) return 2<=x end) then
+    error("invalid args")
+  end
+
+  -- (x y) => {x y}
+  freevars = {}
+  rest = data["left"]
+  i = 1
+  while rest["type"] == "cons" do
+    if rest["left"]["type"] ~= "id" then
+      error("invalid args")
+    end
+    freevars[i] = rest["left"]["value"]
+    rest = rest["right"]
+    i = i + 1
+  end
+  freevars["num"] = i - 1
+
+  if rest["type"] == "id" then
+    restvar = rest["value"]
+  elseif rest["type"] == "null" then
+    restvar = nil
+  else
+    error("invalid args")
+  end
+
+  e = data["right"]
+
+  env0 = new_env(env)
+
+  return {type = "closure", freevars = freevars, restvar = restvar, e = e, env = env0}
+end
+
+-- (define x e1 e2)
+-- (define (f x y . z) e1 e2) => (define f (lambda (x y . z) e1 e2))
+function gf_define(data, env)
+  local ret, rets
+
+  if not is_list(data, function(x) return 2<=x end) then
+    error("invalid args")
+  end
+
+  -- (define x e1 e2)
+  if data["left"]["type"] == "id" then
+    rets = eval_list(data["right"], env)
+    ret = rets[rets["num"]]
+    put_var(env, data["left"]["value"], ret)
+    return data["left"]
+  -- (define (f x y . z) e1 e2) => (define f (lambda (x y . z) e1 e2))
+  elseif data["left"]["type"] == "cons" then
+    local left, lambda
+    left = data["left"]["left"]
+    lambda = gf_lambda(make_cons(data["left"]["right"], data["right"]), env)
+    ret = gf_define(make_cons(left, make_cons(lambda, {type = "null"})), env)
+    return data["left"]["left"]
+  else
+    error("invalid first arg")
+  end
+end
+
+-- (and t1 t2 t3)
+function gf_and(data, env)
+  local tf
+
+  if not is_list(data, null) then
+    error("invalid args")
+  end
+
+  tf = {type = "boolean", value = "t"}
+  while data["type"] == "cons" do
+    tf = eval(data["left"], env)
+    if tf["type"] == "boolean" and tf["value"] == "f" then
+      -- false
+      return {type = "boolean", value = "f"}
+    end
+    data = data["right"]
+  end
+
+  return tf
+end
+
+-- (or t1 t2 t3)
+-- (or) => #f
+-- (or obj) => obj
+function gf_or(data, env)
+  if not is_list(data, nil) then
+    error("invalid args")
+  end
+
+  while data["type"] == "cons" do
+    if data["right"]["type"] == "null" then
+      -- tail recursion
+      return eval(data["left"], env)
+    end
+
+    local tf = eval(data["left"], env)
+    if not (tf["type"] == "boolean" and tf["value"] == "f") then
+      -- true
+      return tf
+    end
+    data = data["right"]
+  end
+
+  return {type = "boolean", value = "f"}
+end
+function cons_to_string(left, right)
+  local s1 = data_to_string(left)
+  local s2 = data_to_string(right)
+  return string.format("(%s . %s)", s1, s2)
+end
+
+function data_to_string(data)
+  if data["type"] == "cons" then
+    return cons_to_string(data["left"], data["right"])
+  elseif data["type"] == "id" then
+    return data["value"]
+  elseif data["type"] == "number" then
+    if data["value"] == 0 then
+      -- -0 is equal to 0
+      return "0"
+    else
+      return tostring(data["value"])
+    end
+  elseif data["type"] == "string" then
+    return data["value"]
+  elseif data["type"] == "boolean" then
+    if data["value"] == "t" then
+      return "#t"
+    else
+      return "#f"
+    end
+  elseif data["type"] == "null" then
+    return "()"
+  elseif data["type"] == "closure" then
+    return "#closure"
+  elseif data["type"] == "closure_lua" then
+    return "#closure_lua"
+  elseif data["type"] == "lua-object" then
+    return "#lua-obj<" .. tostring(data["value"]) .. ">"
+  else
+    return "#unknown"
+  end
+end
+
+-- dump a table
+function dump(t)
+  dump_with_indent(t, 0)
+end
+
+function dump_with_indent(t, indent)
+  local whites, i
+
+  whites = ""
+  for i = 1,indent do
+    whites = " " .. whites
+  end
+
+  for k, v in pairs(t) do
+    if(type(v) == "table") then
+      print(whites .. tostring(k) .. " = " .. "<table>")
+      dump_with_indent(v, indent+2)
+    else
+      print(whites .. tostring(k) .. " = " .. tostring(v))
+    end
+  end
+end
+
+
+function eval_str(str, env)
+  local tokens, data, ans_data, pos
+  tokens = tokenize(str)
+  if tokens["num"] == 0 then
+    return nil
+  end
+
+  pos = 1
+  while pos < tokens["num"] + 1 do
+    data, pos = parse(tokens, pos)
+    ans_data = eval(data, env)
+  end
+
+  return ans_data
+end
+
+function readline(indent)
+  local line = ""
+  local cursor = 1
+  local history_index = #history + 1
+
+  local _, y = term.getCursorPos()
+  local width, height = term.getSize()
+
+  local onCtrl = false
+
+  term.setCursorBlink(true)
+
+  while true do
+    -- calculate gap
+    local gap
+    if indent:len()+cursor <= width then
+      gap = 0
+    else
+      gap = (indent:len()+cursor) - width
+    end
+
+    term.clearLine()
+
+    -- print text with $gap, $cursor and $line
+    term.setCursorPos(1, y)
+    term.write(indent .. line:sub(1+gap, width-indent:len()+gap))
+
+    -- set cursor
+    term.setCursorPos(indent:len()+cursor-gap, y)
+
+    local event, param1 = os.pullEvent()
+    if event == "char" then
+      line = line:sub(1, cursor-1) .. param1 .. line:sub(cursor)
+      cursor = cursor + 1
+    elseif event == "key" and param1 == 29 then
+      -- Ctrl
+      onCtrl = true
+    elseif event == "key" then
+      if param1 == 28 then
+        -- Enter
+        break
+      elseif (param1 == 14 or (onCtrl and param1 == 35)) and 2 <= cursor then
+        -- BS or ^H
+        line = line:sub(1, cursor-2) .. line:sub(cursor)
+        cursor = cursor - 1
+      elseif (param1 == 211 or (onCtrl and param1 == 32)) and cursor <= line:len() then
+        -- Del or ^D
+        line = line:sub(1, cursor-1) .. line:sub(cursor+1)
+      elseif onCtrl and param1 == 37 then
+        -- ^K
+        line = line:sub(1, cursor-1)
+      elseif (param1 == 203 or (onCtrl and param1 == 48)) and 2 <= cursor then
+        -- Left or ^B
+        cursor = cursor - 1
+      elseif (param1 == 205 or (onCtrl and param1 == 33)) and cursor <= line:len() then
+        -- Right or ^F
+        cursor = cursor + 1
+      elseif onCtrl and param1 == 30 then
+        -- ^A
+        cursor = 1
+      elseif onCtrl and param1 == 18 then
+        -- ^E
+        cursor = line:len()+1
+      elseif (param1 == 200 or (onCtrl and param1 == 25)) and 2 <= history_index then
+        -- Up or ^P
+        history_index = history_index - 1
+        line = history[history_index]
+        cursor = line:len() + 1
+      elseif (param1 == 208 or (onCtrl and param1 == 49)) and history_index + 1 <= #history then
+        -- Down or ^N
+        history_index = history_index + 1
+        line = history[history_index]
+        cursor = line:len() + 1
+      end
+
+      -- turn of ctrl
+      onCtrl= false
+    end
+  end
+
+  -- update history
+  if line ~= "" then
+    history[#history+1] = line
+  end
+
+  -- go next line
+  if y <= height-1 then
+    term.setCursorPos(1, y+1)
+  else
+    term.scroll(1)
+    term.setCursorPos(1, y)
+  end
+
+  term.setCursorBlink(false)
+
+  return line
+end
+
+io.write("LUASCHEME INTERPRETER\n")
+
+env = make_global_env()
+pcall(eval_str, "(load \"init.scm\")", env)
+
+history = {}
+
+while true do
+  local line, success, data
+
+  line = ""
+  while line == "" do
+    line = readline("scm> ")
+  end
+
+  if line == nil then
+    break
+  end
+
+  success, data = pcall(eval_str, line, env)
+
+  if not success then
+    io.write("[error] ")
+    io.write(data)
+    io.write("\n")
+  elseif data then
+    io.write(data_to_string(data))
+    io.write("\n")
+  else
+    io.write("\n")
+  end
+end
+
+io.write("\nBYE\n")

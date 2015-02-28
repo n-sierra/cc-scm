@@ -7,7 +7,7 @@ You can run it on [ComputerCraft](http://www.computercraft.info/)(a modification
 ## Usage (on \*nix/Windows)
 
     % git clone https://github.com/n-sierra/cc-scm.git
-    % cd cc-scm
+    % cd cc-scm/src
     % lua repl.lua
     LUASCHEME INTERPRETER
     scm> (+ 1 2)
@@ -20,13 +20,14 @@ Lua 5.1.4 is recommended, while it stil works fine at 5.2.0,
 
 ## Usage (on Minecraft)
 
-1. Create *cc-scm*.
+1. Put *cc-scm* into your [computer](http://computercraft.info/wiki/Computer) in Minecraft.
 
+2. HAVE FUN!
+
+You can also create *cc-scm* as below.
+
+    % cd cc-scm/src
     % lua concat_file.lua > cc-scm
-
-2. Put *cc-scm* into your [computer](http://computercraft.info/wiki/Computer) in Minecraft.
-
-3. HAVE FUN!
 
 ## Screenshots
 
